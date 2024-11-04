@@ -1,0 +1,39 @@
+{
+  "name": "social-media-site",
+  "version": "0.0.1",
+  "description": "Social Media site created using HTML, CSS, JS, Node.js, MongoDB",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TBS099/Social-Media-Site.git"
+  },
+  "keywords": [
+    "Social",
+    "Media",
+    "HTML",
+    "CSS",
+    "JS",
+    "Node.JS",
+    "MongoDB",
+    "Feed",
+    "Post"
+  ],
+  "author": "TBS099",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TBS099/Social-Media-Site/issues"
+  },
+  "homepage": "https://github.com/TBS099/Social-Media-Site#readme",
+  "dependencies": {
+    "express": "^4.21.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "globals": "^15.12.0"
+  }
+}

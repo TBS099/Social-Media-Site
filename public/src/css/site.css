@@ -1,0 +1,200 @@
+/* CSS START */
+/* Light Theme */
+:root[data-theme="light"] {
+    --text: #121517;
+    --background: #f6f7f8;
+    --primary: #434c51;
+    --secondary: #626af3;
+    --accent: #5cac2a;
+}
+
+/* Dark Theme */
+:root[data-theme="dark"] {
+    --text: #e8ebed;
+    --background: #070809;
+    --primary: #aeb7bc;
+    --secondary: #0c139d;
+    --accent: #85d553;
+}
+
+/* Font Start */
+@font-face {
+    font-family: 'Aoboshi One';
+    src: url('../font/AoboshiOne-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: 'Aoboshi One', sans-serif;
+    font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    font-family: 'Aoboshi One';
+    font-weight: 700;
+}
+
+/* 16px */
+html {
+    font-size: 100%;
+}
+
+/* 48.8px */
+h1 {
+    font-size: 3.053rem;
+}
+
+/* 39.04px */
+h2 {
+    font-size: 2.442rem;
+}
+
+/* 31.2px */
+h3 {
+    font-size: 1.954rem;
+}
+
+/* 24.96px */
+h4 {
+    font-size: 1.563rem;
+}
+
+/* 20px */
+h5 {
+    font-size: 1.250rem;
+}
+
+/* 12.8px */
+small {
+    font-size: 0.800rem;
+}
+
+/* Font End */
+
+body {
+    color: var(--text);
+    background-color: var(--background);
+    transition: color 0.3s ease, background-color 0.3s ease;
+    width: 100%;
+    margin: 0;
+}
+
+/* Navbar Start */
+nav.navbar {
+    background-color: var(--background);
+    border-bottom: 1px solid var(--primary);
+    display: flex;
+    justify-content: center;
+    transition: background-color 0.3s ease, border-bottom 0.3s ease;
+}
+
+nav .nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 90%;
+    padding: 15px 0;
+}
+
+nav .nav-container .navbar-title {
+    margin: 0;
+}
+
+nav .nav-container .nav-right {
+    display: flex;
+    align-items: center;
+}
+
+nav .nav-right .navbar-nav {
+    display: flex;
+    list-style: none;
+}
+
+nav .nav-right .navbar-nav .nav-item {
+    padding: 0px 20px;
+}
+
+nav .nav-right .navbar-nav .nav-item .nav-link {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.5s ease;
+}
+
+nav .nav-right .navbar-nav .nav-item .nav-link:hover {
+    color: var(--text);
+}
+
+nav .nav-right .navbar-nav .nav-item .nav-link.active {
+    color: var(--text);
+}
+
+.switch {
+    margin-left: 20px;
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 25px;
+}
+
+/* Hide the input checkbox */
+.switch__input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider background */
+.switch__slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--text);
+    border-radius: 1rem;
+    border: 1px solid;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+/* The slider circle */
+.switch__slider::before {
+    content: "";
+    position: absolute;
+    left: 0.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #040404;
+    transition: transform 0.2s, width 0.2s, background 0.2s;
+}
+
+.switch__input:checked+.switch__slider {
+    background: var(--text);
+}
+
+.switch__input:checked+.switch__slider::before {
+    background: var(--background);
+}
+
+/* Expands the circle on active state (when toggling) */
+.switch__input:not(:checked):active+.switch__slider::before,
+.switch__input:checked:active+.switch__slider::before {
+    width: 20px;
+}
+
+.switch__input:checked+.switch__slider::before {
+    transform: translate(26px, -50%);
+}
+
+
+/* Navbar End */
+
+/* CSS END */

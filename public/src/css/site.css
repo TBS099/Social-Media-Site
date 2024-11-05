@@ -194,7 +194,117 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
     transform: translate(26px, -50%);
 }
 
-
 /* Navbar End */
 
+.dynamic-body {
+    margin-top: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+}
+
+/* Throbber Start */
+@keyframes throbber {
+    0% {
+        background: transparent;
+        height: 0;
+    }
+
+    70% {
+        background: var(--text);
+        height: 40px;
+    }
+}
+
+.throbber {
+    height: 50px;
+    /* 1.25 * 40px */
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+}
+
+.throbber span {
+    background: var(--text);
+    display: inline-block;
+    width: 8px;
+    height: 0;
+}
+
+/* Expanding the loop for 10 children */
+.throbber span:nth-child(1) {
+    -webkit-animation: throbber 1800ms 0ms infinite ease-out;
+    animation: throbber 1800ms 0ms infinite ease-out;
+    margin-left: 5px;
+    /* The spacing specified in the variable */
+}
+
+.throbber span:nth-child(2) {
+    -webkit-animation: throbber 1800ms 100ms infinite ease-out;
+    animation: throbber 1800ms 100ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(3) {
+    -webkit-animation: throbber 1800ms 200ms infinite ease-out;
+    animation: throbber 1800ms 200ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(4) {
+    -webkit-animation: throbber 1800ms 300ms infinite ease-out;
+    animation: throbber 1800ms 300ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(5) {
+    -webkit-animation: throbber 1800ms 400ms infinite ease-out;
+    animation: throbber 1800ms 400ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(6) {
+    -webkit-animation: throbber 1800ms 500ms infinite ease-out;
+    animation: throbber 1800ms 500ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(7) {
+    -webkit-animation: throbber 1800ms 600ms infinite ease-out;
+    animation: throbber 1800ms 600ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(8) {
+    -webkit-animation: throbber 1800ms 700ms infinite ease-out;
+    animation: throbber 1800ms 700ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(9) {
+    -webkit-animation: throbber 1800ms 800ms infinite ease-out;
+    animation: throbber 1800ms 800ms infinite ease-out;
+    margin-left: 5px;
+}
+
+.throbber span:nth-child(10) {
+    -webkit-animation: throbber 1800ms 900ms infinite ease-out;
+    animation: throbber 1800ms 900ms infinite ease-out;
+    margin-left: 5px;
+}
+
+@-webkit-keyframes throbber {
+    0% {
+        background: transparent;
+        height: 0;
+    }
+
+    70% {
+        background: var(--text);
+        height: 40px;
+    }
+}
+
+/* Throbber End */
 /* CSS END */

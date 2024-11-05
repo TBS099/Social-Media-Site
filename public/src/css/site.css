@@ -203,6 +203,13 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
 }
 
 /* Throbber Start */
+.loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+}
+
 @keyframes throbber {
     0% {
         background: transparent;

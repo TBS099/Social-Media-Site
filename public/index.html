@@ -4,10 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="src/css/site.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
         integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <script src="src/js/site.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+        integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="src/css/site.css">
     <title>LifeSurfer</title>
 </head>
 
@@ -48,6 +51,30 @@
             <span></span>
             <span></span>
         </div>
+        <!--MAIN CONTAINER START-->
+        <div class="container">
+            <div class="post-container">
+                <div class="post">
+                    <div class="post-header">
+                        <img src="{post.profilePicture}" alt="Profile Picture" class="profile-picture">
+                        <p class="author-name">${post.author}</p>
+                        <p class="post-date">${post.date}</p>
+                    </div>
+                    <p class="post-content">${post.content}</p>
+                    <div class="post-footer">
+                        <div class="like">
+                            <i class="far fa-heart" id="1" onclick="handle_post_like(post.ID)"></i>
+                            <p class="like-count" id="count-1">${post.like}</p>
+                        </div>
+                        <div class="comment">
+                            <i class="far fa-comment"></i>
+                            <p class="comment-count">${post.comment}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--MAIN CONTAINER END-->
     </div>
     <!--MAIN BODY END-->
 </body>

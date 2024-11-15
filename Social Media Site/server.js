@@ -2,11 +2,16 @@
 import express from 'express';
 import connectDatabase from './db.js';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 const port = process.env.PORT || 5000; //Using port 5000
 const STUDENT_ID = 'YOUR-ID'; //Student ID, just for requirement, use home if needed
-app.use(express.json()); //Middleware to parse JSON
+
+//Middleware to parse JSON bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 //Redirect from the root URL to ID
 app.get('/', (req, res) => {
@@ -20,6 +25,7 @@ app.use(`/${STUDENT_ID}`, express.static('public'));
 connectDatabase().then((db) => {
     const posts = db.collection('posts');
     const users = db.collection('users');
+    const images = db.collection('images');
 
     //POST route to register a new user
     app.post(`/${STUDENT_ID}/users`, async (req, res) => {
@@ -137,9 +143,120 @@ connectDatabase().then((db) => {
                 //If no active session, respond with an error message
                 res.status(400).json({ message: 'No active session found' });
             }
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error logging out user:", error);
             res.status(500).json({ error: "Failed to log out user" });
+        }
+    });
+
+    //POST route to handle image uploads
+    app.post(`/${STUDENT_ID}/images`, async (req, res) => {
+        const { post_id } = req.body;
+        const image = req.files?.image;
+
+        if (!image) {
+            return res.status(400).json({ error: 'No image uploaded' });
+        }
+
+        try {
+            //Save image to the server (as a file or directly in DB)
+            const imagePath = path.join(__dirname, 'uploads', image.name);
+            fs.writeFileSync(imagePath, image.data);
+
+            const result = await images.insertOne({
+                file_name: image.name,
+                path: imagePath,
+                date: new Date()
+            });
+
+            //Get the image ID from the inserted image document
+            const imageId = result.insertedId;
+
+            //Update the post with the image ID
+            const posts = db.collection('posts');
+            await posts.updateOne(
+                { _id: post_id },
+                { $set: { image_id: imageId } }
+            );
+
+            res.status(201).json({
+                message: 'Image uploaded and associated with post successfully',
+                image_id: imageId.toString()
+            });
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            res.status(500).json({ error: "Failed to upload image" });
+        }
+    });
+
+    //POST route to create new posts and store them
+    app.post(`/${STUDENT_ID}/contents`, async (req, res) => {
+        const { content, author_id, tags } = req.body;
+        let postId = null;
+
+        try {
+            //Insert the post
+            const result = await posts.insertOne({
+                content,
+                author_id,
+                tags,
+                date: new Date()
+            });
+
+            //Respond with success message
+            res.status(201).json({
+                message: 'Post created successfully',
+                id: result.insertedId.toString()
+            });
+        }
+        catch (error) {
+            console.error("Error creating post:", error);
+            res.status(500).json({ error: "Failed to create post" });
+        }
+    });
+
+    //GET route to retrieve posts
+    app.get(`/${STUDENT_ID}/contents`, async (req, res) => {
+        try {
+            const user_id = req.session?.user_logged_in;
+
+            if (!user_id) {
+                return res.status(401).json({ error: 'Not logged in' });
+            }
+
+            //Find the user by userId to get the list of users they are following
+            const user = await users.findOne({ _id: new ObjectId(userId) });
+            if (!user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            const following = user.following;
+
+            //Find posts from users that the current user is following
+            const posts = await posts.find({
+                author_id: { $in: following }
+            }).toArray();
+
+            //Retrieve images for posts that have image IDs
+            for (let post of posts) {
+                if (post.image_id) {
+                    const image = await images.findOne({ _id: new ObjectId(post.image_id) });
+                    if (image) {
+                        //Add image data to the post
+                        post.image = {
+                            file_name: image.file_name,
+                            path: image.path,
+                        };
+                    }
+                }
+            }
+
+            //Respond with the posts in JSON format
+            res.status(200).json(posts);
+        } catch (error) {
+            console.error("Error fetching posts:", error);
+            res.status(500).json({ error: "Failed to fetch posts" });
         }
     });
 

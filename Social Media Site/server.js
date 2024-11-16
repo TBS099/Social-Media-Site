@@ -260,6 +260,152 @@ connectDatabase().then((db) => {
         }
     });
 
+    //POST route to follow a user
+    app.post(`/${STUDENT_ID}/follow`, async (req, res) => {
+        const { user_following } = req.body;
+        const user_id = req.session?.user_logged_in;
+
+        try {
+            //Check if the user is logged in
+            if (!user_id) {
+                return res.status(401).json({ error: 'Not logged in' });
+            }
+
+            //Find the user to follow
+            const following_user = await users.findOne({ username: user_following });
+            if (!following_user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            //Check if the logged-in user is already following this user
+            const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
+            if (logged_in_user.following.includes(following_user._id)) {
+                return res.status(400).json({ error: "Already following user" });
+            }
+
+            //Add the user to the following list
+            await users.updateOne(
+                { _id: new ObjectId(user_id) },
+                { $push: { following: following_user._id } }
+            );
+
+            //Add the logged-in user to the followers list
+            await users.updateOne(
+                { _id: following_user._id },
+                { $push: { followers: new ObjectId(user_id) } }
+            );
+
+            //Respond with a success message
+            res.status(200).json({
+                message: `You are now following ${usernameToFollow}`,
+                following: usernameToFollow,
+                followersUpdated: true
+            });
+        }
+        catch (error) {
+            console.error("Error following user:", error);
+            res.status(500).json({ error: "Failed to follow user" });
+        }
+    });
+
+    //DELETE route to unfollow a user
+    app.delete(`/${STUDENT_ID}/follow`, async (req, res) => {
+        const { user_unfollowing } = req.body;
+        const user_id = req.session?.user_logged_in;
+
+        try {
+            //Check if the user is logged in
+            if (!user_id) {
+                return res.status(401).json({ error: 'Not logged in' });
+            }
+
+            //Find the user to follow
+            const unfollowing_user = await users.findOne({ username: user_unfollowing });
+            if (!unfollowing_user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            //Check if the logged-in user is following the user
+            const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
+            if (!logged_in_user.following.includes(unfollowing_user._id)) {
+                return res.status(400).json({ error: "Not following user" });
+            }
+
+            //Remove the user from the following list
+            await users.updateOne(
+                { _id: new ObjectId(user_id) },
+                { $pull: { following: unfollowing_user._id } }
+            );
+
+            //Remove the logged-in user from the followers list
+            await users.updateOne(
+                { _id: unfollowing_user._id },
+                { $pull: { followers: new ObjectId(user_id) } }
+            );
+
+            //Respond with a success message
+            res.status(200).json({
+                message: `You are no longer following ${user_unfollowing}`,
+                following: user_unfollowing,
+                followersUpdated: true
+            });
+        }
+        catch (error) {
+            console.error("Error unfollowing user:", error);
+            res.status(500).json({ error: "Failed to unfollow user" });
+        }
+    });
+
+    //GET route to search for a user
+    app.get(`/${STUDENT_ID}/users/search`, async (req, res) => {
+        try {
+            const query = req.query.q; //Extract the search query from URL parameters
+
+            if (!query) {
+                return res.status(400).json({ error: "Search query not provided" });
+            }
+
+            //Search users with a case-insensitive regex match
+            const usersMatchingQuery = await users
+                .find({ username: { $regex: query, $options: "i" } }) //"i" for case-insensitive
+                .project({ username: 1, email: 1 }) //Limit fields to return (e.g., username and email)
+                .toArray();
+
+            // Respond with the matching users
+            res.status(200).json(usersMatchingQuery);
+        } catch (error) {
+            console.error("Error searching for users:", error);
+            res.status(500).json({ error: "Failed to search for users" });
+        }
+    });
+
+    //GET route to search for posts
+    app.get(`/${STUDENT_ID}/contents/search`, async (req, res) => {
+        try {
+            const query = req.query.q; //Extract the search query from URL parameters
+
+            if (!query) {
+                return res.status(400).json({ error: "Search query not provided" });
+            }
+
+            //Perform a case-insensitive search in both `content` and `tags`
+            const postsMatchingQuery = await posts
+                .find({
+                    $or: [
+                        { content: { $regex: query, $options: "i" } }, //Match in content
+                        { tags: { $regex: query, $options: "i" } }     //Match in tags
+                    ]
+                })
+                .toArray();
+
+            //Respond with the matching posts
+            res.status(200).json(postsMatchingQuery);
+        } catch (error) {
+            console.error("Error searching for contents:", error);
+            res.status(500).json({ error: "Failed to search for contents" });
+        }
+    });
+
 }).catch((error) => {
     console.error('Error connecting to MongoDB:', error);
 });

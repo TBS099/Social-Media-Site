@@ -1,17 +1,39 @@
 //server.mjs
 import express from 'express';
+import { ObjectId } from 'mongodb';
 import connectDatabase from './db.js';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from "url";
+import bodyParser from 'body-parser';
+import expressSession from 'express-session';
+
+// Define __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 const app = express();
 const port = process.env.PORT || 5000; //Using port 5000
 const STUDENT_ID = 'YOUR-ID'; //Student ID, just for requirement, use home if needed
 
 //Middleware to parse JSON bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+//Session middleware configuration
+app.use(
+    expressSession({
+        secret: 'Social-MySecret',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            httpOnly: true, //Protect against XSS by not allowing JavaScript access to cookies
+            secure: false, //Set to true if using HTTPS
+        },
+    })
+);
 
 //Redirect from the root URL to ID
 app.get('/', (req, res) => {
@@ -33,9 +55,16 @@ connectDatabase().then((db) => {
 
         try {
             //Check if username exists
-            const user = await users.findOne({ username });
+            const [user, email_check] = await Promise.all([
+                users.findOne({ username }),
+                users.findOne({ email })
+            ]);
             if (user) {
-                return res.status(400).send('Username already exists');
+                return res.status(400).json({ error: 'Username already exists' });
+            }
+
+            if (email_check) {
+                return res.status(400).json({ error: "Email already exists" });
             }
 
             // Hash the password before storing it (using SHA-256 and salt)
@@ -54,6 +83,9 @@ connectDatabase().then((db) => {
                 created: new Date()
             });
 
+            req.session.user_logged_in = true; // Indicates the user is logged in
+            req.session.user_id = result.insertedId;
+
             //Respond with success message
             res.status(201).json({
                 message: 'User registered successfully',
@@ -70,18 +102,18 @@ connectDatabase().then((db) => {
     app.get(`/${STUDENT_ID}/login`, async (req, res) => {
         try {
             // Check if the user is logged in by checking session data or a token
-            const user_logged_in = req.session?.user_logged_in;
+            const user_logged_in = req.session?.user_id;
 
             if (user_logged_in) {
                 //Return logged-in status as true and user info
                 res.status(200).json({
-                    loggedIn: true,
-                    userId: user_logged_in
+                    logged_in: true,
+                    user_id: user_logged_in
                 });
             } else {
                 //Return logged-in status as false if not logged in
                 res.status(200).json({
-                    loggedIn: false
+                    logged_in: false
                 });
             }
         }
@@ -113,8 +145,8 @@ connectDatabase().then((db) => {
             }
 
 
-            //Log the user in
-            req.session.loggedInUser = user._id;
+            req.session.user_logged_in = true; // Indicates the user is logged in
+            req.session.user_id = user._id;
 
             //Send success response with user ID and logged-in status
             res.status(200).json({
@@ -135,10 +167,14 @@ connectDatabase().then((db) => {
             //Check if the user is logged in
             if (req.session?.user_logged_in) {
                 //Delete the session data
-                delete req.session.user_logged_in;
-
-                //Respond with a logout confirmation
-                res.status(200).json({ message: 'Logged out successfully' });
+                req.session.destroy((err) => {
+                    if (err) {
+                        console.error("Error destroying session:", err);
+                        return res.status(500).json({ error: "Failed to log out user" });
+                    }
+                    //Respond with a logout confirmation
+                    res.status(200).json({ message: 'Logged out successfully' });
+                });
             } else {
                 //If no active session, respond with an error message
                 res.status(400).json({ message: 'No active session found' });
@@ -152,8 +188,11 @@ connectDatabase().then((db) => {
 
     //POST route to handle image uploads
     app.post(`/${STUDENT_ID}/images`, async (req, res) => {
-        const { post_id } = req.body;
-        const image = req.files?.image;
+        const { _id } = req.body;
+        const image = req.files;
+
+        console.log(_id);
+        console.log(image);
 
         if (!image) {
             return res.status(400).json({ error: 'No image uploaded' });
@@ -173,12 +212,18 @@ connectDatabase().then((db) => {
             //Get the image ID from the inserted image document
             const imageId = result.insertedId;
 
-            //Update the post with the image ID
-            const posts = db.collection('posts');
-            await posts.updateOne(
-                { _id: post_id },
-                { $set: { image_id: imageId } }
-            );
+            if (posts.findOne({ _id: _id }) != null) {
+                await posts.updateOne(
+                    { _id: _id },
+                    { $set: { image_id: imageId } }
+                );
+            }
+            else if (users.findOne({ _id: _id }) != null) {
+                await users.updateOne(
+                    { _id: _id },
+                    { $set: { image_id: imageId } }
+                );
+            }
 
             res.status(201).json({
                 message: 'Image uploaded and associated with post successfully',
@@ -219,41 +264,74 @@ connectDatabase().then((db) => {
     //GET route to retrieve posts
     app.get(`/${STUDENT_ID}/contents`, async (req, res) => {
         try {
-            const user_id = req.session?.user_logged_in;
+            const user_id = req.session?.user_id;
+            console.log("Session:", req.session);
 
             if (!user_id) {
-                return res.status(401).json({ error: 'Not logged in' });
+                return res.status(401).json({ error: "Not logged in" });
             }
 
-            //Find the user by userId to get the list of users they are following
-            const user = await users.findOne({ _id: new ObjectId(userId) });
+            const user = await users.findOne({ _id: new ObjectId(user_id) });
             if (!user) {
                 return res.status(404).json({ error: "User not found" });
             }
 
-            const following = user.following;
+            const following = user.following || [];
+            let posts = [];
 
-            //Find posts from users that the current user is following
-            const posts = await posts.find({
-                author_id: { $in: following }
-            }).toArray();
-
-            //Retrieve images for posts that have image IDs
-            for (let post of posts) {
-                if (post.image_id) {
-                    const image = await images.findOne({ _id: new ObjectId(post.image_id) });
-                    if (image) {
-                        //Add image data to the post
-                        post.image = {
-                            file_name: image.file_name,
-                            path: image.path,
-                        };
-                    }
-                }
+            if (following.length > 0) {
+                posts = await postsCollection
+                    .find({ author_id: { $in: following } })
+                    .sort({ created_at: -1 })
+                    .toArray();
             }
 
-            //Respond with the posts in JSON format
+            // //Retrieve images for posts that have image IDs
+            // for (let post of posts) {
+            //     if (post.image_id) {
+            //         const image = await images.findOne({ _id: new ObjectId(post.image_id) });
+            //         if (image) {
+            //             //Add image data to the post
+            //             post.image = {
+            //                 file_name: image.file_name,
+            //                 path: image.path,
+            //             };
+            //         }
+            //     }
+            // }
+
+            console.log("Fetched posts:", posts);
             res.status(200).json(posts);
+        } catch (error) {
+            console.error("Error fetching posts:", error);
+            res.status(500).json({ error: "Failed to fetch posts" });
+        }
+    });
+
+
+    //GET route to retrieve latest posts from all users
+    app.get(`/${STUDENT_ID}/contents/latest`, async (req, res) => {
+        try {
+            console.log("Fetching latest posts");
+            // Find all posts, sorted by creation date (latest first)
+            const post_data = await posts.find({}).sort({ date: -1 }).toArray();
+
+            // //Retrieve images for posts that have image IDs
+            // for (let post of posts) {
+            //     if (post.image_id) {
+            //         const image = await images.findOne({ _id: new ObjectId(post.image_id) });
+            //         if (image) {
+            //             //Add image data to the post
+            //             post.image = {
+            //                 file_name: image.file_name,
+            //                 path: image.path,
+            //             };
+            //         }
+            //     }
+            // }
+
+            //Respond with the posts in JSON format
+            res.status(200).json(post_data);
         } catch (error) {
             console.error("Error fetching posts:", error);
             res.status(500).json({ error: "Failed to fetch posts" });
@@ -404,6 +482,12 @@ connectDatabase().then((db) => {
             console.error("Error searching for contents:", error);
             res.status(500).json({ error: "Failed to search for contents" });
         }
+    });
+
+    //Catch-all route to serve the same HTML file for dynamic routes
+    app.get(`/${STUDENT_ID}/*`, (req, res) => {
+        //Only serve index.html for requests that don't match the API routes
+        res.sendFile(path.join(__dirname, "public", "index.html"));
     });
 
 }).catch((error) => {

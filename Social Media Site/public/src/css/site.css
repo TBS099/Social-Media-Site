@@ -5,11 +5,16 @@
     --background: #f6f7f8;
     --primary: #434c51;
     --secondary: #626af3;
-    --notifications: #85d553;
-    --accent: #5cac2a;
+    --notifications: #77dd77;
+    --accent: #27ae60;
     --card-color: #FFFFFF;
     --btn-shadow: #0000004d;
     --following-btn: #e0e0e0;
+    --form-btn: #77dd77;
+    --error-bg-color: #f8d7da;
+    --error-color: #721c24;
+    --success-bg-color: #d4edda;
+    --success-color: #155724;
 }
 
 /* Dark Theme */
@@ -18,11 +23,16 @@
     --background: #070809;
     --primary: #aeb7bc;
     --secondary: #0c139d;
-    --notifications: #85d553;
-    --accent: #5cac2a;
+    --notifications: #77dd77;
+    --accent: #27ae60;
     --card-color: #161616;
     --btn-shadow: #ffffff4d;
     --following-btn: #3c3c3c;
+    --form-btn: #27ae60;
+    --error-bg-color: #f8d7da;
+    --error-color: #721c24;
+    --success-bg-color: #d4edda;
+    --success-color: #155724;
 }
 
 /* Font Start */
@@ -83,6 +93,13 @@ small {
 }
 
 /* Font End */
+html,
+body {
+    height: 100%;
+    /* Ensures the body takes the full viewport height */
+    margin: 0;
+    /* Prevents default margins from affecting layout */
+}
 
 body {
     color: var(--text);
@@ -139,6 +156,10 @@ nav .nav-right .navbar-nav .nav-item .nav-link:hover {
 
 nav .nav-right .navbar-nav .nav-item .nav-link.active {
     color: var(--text);
+}
+
+#hide-logout {
+    cursor: pointer;
 }
 
 .switch {
@@ -325,6 +346,9 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+    height: 80vh;
+    box-sizing: border-box;
 }
 
 /* Post Start */
@@ -495,4 +519,126 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
 }
 
 /* Profile End */
+
+/* Form Start */
+
+.form-container {
+    width: 45%;
+    padding: 10px 10px 20px 10px;
+}
+
+.form-container.login {
+    border: 1px solid var(--text);
+    border-radius: 10px;
+}
+
+.form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.form-group {
+
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.form-text {
+    width: 80%;
+}
+
+.form-group label {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.form-text .form-group input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.image-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.image-upload label {
+    margin-bottom: 4px;
+}
+
+.form-group input[type="file"]::file-selector-button {
+    background-color: var(--background);
+    color: var(--text);
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid var(--text);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.form-group input[type="file"]::file-selector-button:hover {
+    background-color: var(--text);
+    color: var(--background);
+}
+
+button {
+    margin-top: 40px;
+    background-color: var(--background);
+    color: var(--text);
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid var(--text);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+button:hover {
+    background-color: var(--form-btn);
+}
+
+/* Form End */
+
+/* Form Messages Start */
+
+#form-message {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+#form-message .message {
+    font-size: 15px;
+    margin-bottom: 10px;
+    padding: 13px;
+    border-radius: 5px;
+    width: 80%;
+    text-align: center;
+}
+
+.error.message {
+    background-color: var(--error-bg-color);
+    border: var(--error-color) 2px solid;
+    color: var(--error-color);
+}
+
+.success.message {
+    background-color: var(--success-bg-color);
+    border: var(--success-color) 2px solid;
+    color: var(--success-color);
+}
+
+/* FORM MESSAGE CSS END */
+
+/* Form Messages End */
 /* CSS END */

@@ -3,11 +3,15 @@ const STUDENT_ID = "YOUR-ID"; //Replace this with your student ID
 
 $(document).ready(function () {
     console.log("DOM is fully loaded");
-    handle_logout(); //Call the handle_logout function
+    handle_logout(); //Call the logout function
+    handle_create_post_popup(); //Call the post popup function
+    handle_post_submit(); //Call the post submit function
 
     //Initialize necessary variables
     let user_id = 0; //Initialize user_id
     const theme_toggle = $('[data-theme-toggle]');
+    const textarea = document.getElementById("post-content");
+    const postCreation = document.querySelector(".post-creation");
 
     //Function to set the theme
     function set_theme(theme) {
@@ -31,6 +35,17 @@ $(document).ready(function () {
             set_theme('dark');
         }
     });
+
+    //Function to adjust the height of the parent container
+    textarea.addEventListener("input", () => {
+        //Reset textarea height to calculate the new height dynamically
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+
+        //Adjust the height of the .post-creation box
+        postCreation.style.height = `${textarea.scrollHeight + 355}px`; //Add padding/margin if needed
+    });
+
 
     //Fetch the user's login status on page load
     fetch(`/${STUDENT_ID}/login`, {
@@ -64,41 +79,49 @@ $(document).ready(function () {
     async function get_content(route) {
         switch (route) {
             case `/${STUDENT_ID}/`:
-                $("#loader").hide(); //Use jQuery to hide the loader
+                $("#loader").hide();
                 $("#container").css("justify-content", "normal"); //Use jQuery to set the flexbox alignment
                 return home_page(user_id);
 
             case `/${STUDENT_ID}/profile/${user_id}`:
-                $("#loader").hide(); //Hide the loader
+                $("#loader").hide();
                 if (user_id === 0) {
                     return "<h1>404 Not Found</h1>";
                 }
                 return profile_page();
 
             case `/${STUDENT_ID}/register`:
-                $("#loader").hide(); //Hide the loader
+                $("#loader").hide();
                 if (!user_id || user_id === 0) {
-                    return register_page(); //Render the registration form
+                    return create_register_page(); //Render the registration form
                 } else {
                     redirect_to_home();
                 }
                 break;
 
             case `/${STUDENT_ID}/surfer-login`:
-                $("#loader").hide(); //Hide the loader
+                $("#loader").hide();
                 if (!user_id || user_id === 0) {
-                    return login_page(); //Render the login form
+                    return create_login_page(); //Render the login form
                 } else {
                     redirect_to_home();
                 }
                 break;
 
             case `/${STUDENT_ID}/search`:
-                $("#loader").hide(); //Hide the loader
-                return search_page();
+                $("#loader").hide();
+                return search_page(); //Render the search form
 
+            case `/${STUDENT_ID}/create`:
+                $("#loader").hide();
+                if (user_id != 0) {
+                    return post_creation_popup(); //Render the post creation form
+                } else {
+                    redirect_to_home();
+                }
+                break;
             default:
-                $("#loader").hide(); //Hide the loader
+                $("#loader").hide();
                 return "<h1>404 Not Found</h1>";
         }
     }
@@ -124,17 +147,17 @@ $(document).ready(function () {
     }
 });
 
-// Function to handle registration form submission
+//Function to handle registration form submission
 async function handle_register_form() {
     const register_form = $("#register-form");
     const form_message = $("#form-message");
     const form_title = $("#register-form-title");
 
     register_form.on("submit", async function (event) {
-        event.preventDefault(); // Prevent page reload
+        event.preventDefault(); //Prevent page reload
         form_message.html("");
 
-        // Get the form data
+        //Get the form data
         const username = register_form.find("input[name='username']").val();
         const email = register_form.find("input[name='email']").val();
         const password = register_form.find("input[name='password']").val();
@@ -148,7 +171,7 @@ async function handle_register_form() {
             };
 
             try {
-                // Send the registration data as JSON
+                //Send the registration data as JSON
                 const res = await fetch(`/${STUDENT_ID}/users`, {
                     method: "POST",
                     headers: {
@@ -178,17 +201,17 @@ async function handle_register_form() {
     });
 }
 
-// Function to handle login form submission
+//Function to handle login form submission
 async function handle_login_form() {
     const login_form = $("#login-form");
     const form_message = $("#form-message");
     const form_title = $("#login-form-title");
 
     login_form.on("submit", async function (event) {
-        event.preventDefault(); // Prevent page reload
+        event.preventDefault(); //Prevent page reload
         form_message.html("");
 
-        // Get the form data
+        //Get the form data
         const username = login_form.find("input[name='username']").val();
         const password = login_form.find("input[name='password']").val();
 
@@ -209,7 +232,7 @@ async function handle_login_form() {
             if (!res.ok) {
                 const error_msg = await res.json();
                 console.error('Error response:', error_msg);
-                show_feedback_message("error", error_msg.error, form_title[0], form_message[0]);
+                show_feedback_message("error", error_msg, form_title[0], form_message[0]);
             } else {
                 const data = await res.json();
                 show_feedback_message("success", data.message, form_title[0], form_message[0]);
@@ -224,7 +247,53 @@ async function handle_login_form() {
     });
 }
 
-// Function to create a home page
+//Function to handle post creation form submission
+async function handle_post_submit() {
+    const form = $("#create-post-form");
+    const form_message = $("#create-post-form-message");
+    const form_title = $("#create-post-form-title");
+
+    form.on("submit", async function (event) {
+        event.preventDefault(); //Prevent page reload
+
+        //Get the form data
+        const content = form.find("textarea[name='content']").val();
+        const tags = form.find("textarea[name='tags']").val();
+
+        const formData = {
+            content: content,
+            tags: tags,
+        };
+
+        try {
+            const response = await fetch(`/${STUDENT_ID}/contents`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Error creating post:', errorData.message || 'Post creation failed');
+                show_feedback_message("error", errorData.message || 'Post creation failed', form_title[0], form_message[0]);
+            } else {
+                const data = await response.json();
+                show_feedback_message("success", data.message, form_title[0], form_message[0]);
+                setTimeout(function () {
+                    window.location.href = `/${STUDENT_ID}/`;
+                }, 1000);
+            }
+        }
+        catch (error) {
+            console.error("Error creating post:", error);
+            show_feedback_message("error", "An error occurred. Please try again later.", form_title[0], form_message[0]);
+        }
+    });
+}
+
+//Function to create a home page
 async function home_page(user_id) {
     if (user_id != 0) {
         try {
@@ -247,14 +316,14 @@ async function home_page(user_id) {
             } else {
                 let postHTML = "<div class='post-container'>";
                 posts.forEach(post => {
-                    postHTML += create_post(post);
+                    postHTML += create_post(post, user_id);
                 });
                 postHTML += "</div>";
                 return postHTML;
             }
         } catch (error) {
             console.error("Error fetching posts:", error);
-            container.innerHTML = "<p>Could not load posts. Please try again later.</p>";
+            return "<p>Could not load posts. Please try again later.</p>";
         }
     } else {
         try {
@@ -288,16 +357,38 @@ async function home_page(user_id) {
     }
 }
 
+//Function to show create post popup
+function handle_create_post_popup() {
+    const popup_link = $("#popup-link");
+    const popup = $("#post-popup");
+    const popup_div = $(".post-creation")
+
+
+    //Setting event listenter
+    //Setting event listener for toggling the popup
+    popup_link.on("click", function (event) {
+        event.preventDefault(); //Prevent default link behavior
+        popup.toggleClass("visible"); //Show the popup if hidden, hide it if visible
+    });
+
+    $(document).on("click", function (event) {
+        if (!popup_div.is(event.target) && popup_div.has(event.target).length === 0 && !popup_link.is(event.target)) {
+            popup.removeClass("visible"); //Hide the popup if the click is outside
+        }
+    });
+}
+
 //Function to handle logout
 async function handle_logout() {
     const logout_link = $("#hide-logout");
 
+    //Setting event listener
     logout_link.on("click", async function (event) {
         event.preventDefault();
 
         try {
             const response = await fetch(`/${STUDENT_ID}/login`, {
-                method: "DELETE",  // Correctly using DELETE method
+                method: "DELETE",  //Correctly using DELETE method
                 headers: {
                     "Content-Type": "application/json",
                 }
@@ -305,12 +396,12 @@ async function handle_logout() {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(data.message);  // Log the success message
+                console.log(data.message);  //Log the success message
 
-                // Delay the redirection to ensure session destruction is complete
+                //Delay the redirection to ensure session destruction is complete
                 setTimeout(function () {
-                    window.location.href = `/${STUDENT_ID}/`;  // Redirect after successful logout
-                }, 500);  // Small delay to ensure session is cleared
+                    window.location.href = `/${STUDENT_ID}/`;  //Redirect after successful logout
+                }, 500);  //Small delay to ensure session is cleared
             } else {
                 const errorData = await response.json();
                 console.error('Error logging out:', errorData.message || 'Logout failed');
@@ -373,22 +464,28 @@ function follow_user(follower_id, user_id) {
 
 //Function to create a post on the basis of the provided data
 function create_post(post, user_id) {
+    //Format the date
+    const post_date = new Date(post.date);
+    const formatted_date = new Intl.DateTimeFormat('en-GB', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    }).format(post_date);
+
     const post_template = `
         <div class="post">
             <div class="post-header">
-                <img src="{post.profilePicture}" alt="Profile Picture" class="profile-picture">
-                <p class="author-name">${post.author}</p>
-                <p class="post-date">${post.date}</p>
+                <p class="author-name">${post.author_name}</p>
+                <p class="post-date">${formatted_date}</p>
             </div>
             <p class="post-content">${post.content}</p>
             <div class="post-footer">
                 <div class="like">
-                    <i class="far fa-heart" id="${post.ID}" onclick="handle_post_like(${post.ID}, ${user_id})"></i>
-                    <p class="like-count" id="count-${post.ID}">${post.like}</p>
-                </div>
-                <div class="comment">
-                    <i class="far fa-comment"></i>
-                    <p class="comment-count">${post.comment}</p>
+                    <i class="far fa-heart" id="${post._id}" onclick="handle_post_like(${post._id}, ${user_id})"></i>
+                    <p class="like-count" id="count-${post._id}">${post.like}</p>
                 </div>
             </div>
         </div>
@@ -445,7 +542,7 @@ function create_profile() {
 }
 
 //Function to create a profile page
-function register_page() {
+function create_register_page() {
     return `
     <div class="form-container">
         <form id="register-form" class="form" action="" enctype="multipart/form-data">
@@ -453,19 +550,27 @@ function register_page() {
             <div id="form-message"></div>
             <div class="form-text">
                 <div class="form-group">
-                    <label for="username">Username:</label>
+                    <div class="label-div">
+                        <label for="username">Username:</label>
+                    </div>
                     <input type="text" id="username" name="username" required>
                 </div>
                 <div class="form-group">
-                    <label for="email">Email:</label>
+                    <div class="label-div">
+                        <label for="email">Email:</label>
+                    </div>
                     <input type="email" id="email" name="email" required>
                 </div>
                 <div class="form-group">
-                    <label for="password">Password:</label>
+                    <div class="label-div">
+                        <label for="password">Password:</label>
+                    </div>
                     <input type="password" id="password" name="password" required>
                 </div>
                 <div class="form-group">
+                    <div class="label-div">
                     <label for="confirm_password">Confirm Password:</label>
+                    </div>
                     <input type="password" id="confirm-password" name="confirm_password" required>
                 </div>
             </div>
@@ -480,7 +585,7 @@ function register_page() {
 }
 
 //Function to create a login page
-function login_page() {
+function create_login_page() {
     return `
     <div class="form-container login">
         <form id="login-form" class="form" action="" enctype="multipart/form-data">
@@ -488,11 +593,15 @@ function login_page() {
             <div id="form-message"></div>
             <div class="form-text">
                 <div class="form-group">
-                    <label for="username">Username:</label>
+                    <div class="label-div">
+                        <label for="username">Username:</label>
+                    </div>
                     <input type="text" id="username" name="username" required>
                 </div>
                 <div class="form-group">
-                    <label for="password">Password:</label>
+                    <div class="label-div">
+                        <label for="password">Password:</label>
+                    </div>
                     <input type="password" id="password" name="password" required>
                 </div>
             </div>
@@ -504,8 +613,8 @@ function login_page() {
 
 //Function to show messages (both error and success)
 function show_feedback_message(type, message, form_title, form_message) {
-    form_title.style.marginBottom = '20px';
-    form_message.innerHTML = `<div class="${type} message">${message}</div>`;
+    $(form_title).css('margin-bottom', '20px');
+    $(form_message).html(`<div class="${type} message">${message}</div>`);
 }
 
 //Function to validate the registration form

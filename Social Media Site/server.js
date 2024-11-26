@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import bodyParser from 'body-parser';
 import expressSession from 'express-session';
 
-// Define __dirname for ES modules
+//Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -67,11 +67,11 @@ connectDatabase().then((db) => {
                 return res.status(400).json({ error: "Email already exists" });
             }
 
-            // Hash the password before storing it (using SHA-256 and salt)
-            const salt = crypto.randomBytes(16).toString('hex'); // Generate a salt
+            //Hash the password before storing it (using SHA-256 and salt)
+            const salt = crypto.randomBytes(16).toString('hex'); //Generate a salt
             const hashedPassword = crypto.createHmac('sha256', salt)
                 .update(password)
-                .digest('hex'); // Hash the password with the salt
+                .digest('hex'); //Hash the password with the salt
 
             //Insert the new user
             const result = await users.insertOne({
@@ -83,7 +83,7 @@ connectDatabase().then((db) => {
                 created: new Date()
             });
 
-            req.session.user_logged_in = true; // Indicates the user is logged in
+            req.session.user_logged_in = true; //Indicates the user is logged in
             req.session.user_id = result.insertedId;
 
             //Respond with success message
@@ -101,7 +101,7 @@ connectDatabase().then((db) => {
     //GET route to check login status of a user
     app.get(`/${STUDENT_ID}/login`, async (req, res) => {
         try {
-            // Check if the user is logged in by checking session data or a token
+            //Check if the user is logged in by checking session data or a token
             const user_logged_in = req.session?.user_id;
 
             if (user_logged_in) {
@@ -131,7 +131,7 @@ connectDatabase().then((db) => {
             //Check if user exists
             const user = await users.findOne({ username });
             if (!user) {
-                return res.status(404).send('User not found');
+                return res.status(404).json('User not found');
             }
 
             //Hash the provided password with the stored salt
@@ -141,11 +141,11 @@ connectDatabase().then((db) => {
 
             //Compare the hashed passwords
             if (hashedPassword !== user.password) {
-                return res.status(401).json({ error: 'Incorrect password' });
+                return res.status(401).json('Incorrect password');
             }
 
 
-            req.session.user_logged_in = true; // Indicates the user is logged in
+            req.session.user_logged_in = true; //Indicates the user is logged in
             req.session.user_id = user._id;
 
             //Send success response with user ID and logged-in status
@@ -191,8 +191,6 @@ connectDatabase().then((db) => {
         const { _id } = req.body;
         const image = req.files;
 
-        console.log(_id);
-        console.log(image);
 
         if (!image) {
             return res.status(400).json({ error: 'No image uploaded' });
@@ -237,15 +235,23 @@ connectDatabase().then((db) => {
 
     //POST route to create new posts and store them
     app.post(`/${STUDENT_ID}/contents`, async (req, res) => {
-        const { content, author_id, tags } = req.body;
-        let postId = null;
+        const { content, tags } = req.body;
+        const author_id = req.session?.user_id;
+
+        //Extract the tags from the comma-separated string
+        const tags_array = tags.split(',').map(tag => tag.trim()).filter(tag => tag !== "" && tag.startsWith('#'));
+
+        //Check if the array is empty, and if so, set it to an empty array
+        if (tags_array.length === 0) {
+            tags_array = [];
+        }
 
         try {
             //Insert the post
             const result = await posts.insertOne({
                 content,
-                author_id,
-                tags,
+                author_id: new ObjectId(author_id),
+                tags: tags_array,
                 date: new Date()
             });
 
@@ -265,7 +271,7 @@ connectDatabase().then((db) => {
     app.get(`/${STUDENT_ID}/contents`, async (req, res) => {
         try {
             const user_id = req.session?.user_id;
-            console.log("Session:", req.session);
+            const post_data = [];
 
             if (!user_id) {
                 return res.status(401).json({ error: "Not logged in" });
@@ -280,55 +286,101 @@ connectDatabase().then((db) => {
             let posts = [];
 
             if (following.length > 0) {
-                posts = await postsCollection
-                    .find({ author_id: { $in: following } })
-                    .sort({ created_at: -1 })
-                    .toArray();
+                post_data = await posts.aggregate([
+                    {
+                        $match: { author_id: { $in: following } } // Match posts where the author is in the 'following' array
+                    },
+                    {
+                        $lookup: {
+                            from: 'users', // Specify the collection to join
+                            localField: 'author_id', // Field from the 'posts' collection
+                            foreignField: '_id', // Field from the 'users' collection
+                            as: 'author' // Alias for the joined data
+                        }
+                    },
+                    {
+                        $unwind: '$author' // Unwind the 'author' array (since $lookup returns an array)
+                    },
+                    {
+                        $project: {
+                            content: 1, // Include content in the output
+                            author_id: 1, // Include author_id in the output
+                            tags: 1, // Include tags in the output
+                            date: 1, // Include the date in the output
+                            author_name: '$author.username', // Add author name to the result
+                        }
+                    },
+                    {
+                        $sort: { date: -1 } // Sort by date in descending order
+                    }
+                ]).toArray();
             }
 
-            // //Retrieve images for posts that have image IDs
-            // for (let post of posts) {
-            //     if (post.image_id) {
-            //         const image = await images.findOne({ _id: new ObjectId(post.image_id) });
-            //         if (image) {
-            //             //Add image data to the post
-            //             post.image = {
-            //                 file_name: image.file_name,
-            //                 path: image.path,
-            //             };
-            //         }
-            //     }
-            // }
+            ////Retrieve images for posts that have image IDs
+            //for (let post of posts) {
+            //    if (post.image_id) {
+            //        const image = await images.findOne({ _id: new ObjectId(post.image_id) });
+            //        if (image) {
+            //            //Add image data to the post
+            //            post.image = {
+            //                file_name: image.file_name,
+            //                path: image.path,
+            //            };
+            //        }
+            //    }
+            //}
 
-            console.log("Fetched posts:", posts);
-            res.status(200).json(posts);
+            res.status(200).json(post_data);
         } catch (error) {
             console.error("Error fetching posts:", error);
             res.status(500).json({ error: "Failed to fetch posts" });
         }
     });
 
-
     //GET route to retrieve latest posts from all users
     app.get(`/${STUDENT_ID}/contents/latest`, async (req, res) => {
         try {
             console.log("Fetching latest posts");
-            // Find all posts, sorted by creation date (latest first)
-            const post_data = await posts.find({}).sort({ date: -1 }).toArray();
+            //Find all posts, sorted by creation date (latest first)
+            const post_data = await posts.aggregate([
+                {
+                    $lookup: {
+                        from: 'users', // The users collection to join
+                        localField: 'author_id', // Field in the 'posts' collection
+                        foreignField: '_id', // Field in the 'users' collection
+                        as: 'author' // Alias for the joined data
+                    }
+                },
+                {
+                    $unwind: '$author' // Flatten the 'author' array to make the fields directly accessible
+                },
+                {
+                    $project: {
+                        content: 1, // Include content in the output
+                        author_id: 1, // Include author_id in the output
+                        tags: 1, // Include tags in the output
+                        date: 1, // Include the date in the output
+                        author_name: '$author.username', // Add author name (replace 'username' with the actual field)
+                    }
+                },
+                {
+                    $sort: { date: -1 } // Sort posts by date, most recent first
+                }
+            ]).toArray();
 
-            // //Retrieve images for posts that have image IDs
-            // for (let post of posts) {
-            //     if (post.image_id) {
-            //         const image = await images.findOne({ _id: new ObjectId(post.image_id) });
-            //         if (image) {
-            //             //Add image data to the post
-            //             post.image = {
-            //                 file_name: image.file_name,
-            //                 path: image.path,
-            //             };
-            //         }
-            //     }
-            // }
+            ////Retrieve images for posts that have image IDs
+            //for (let post of posts) {
+            //    if (post.image_id) {
+            //        const image = await images.findOne({ _id: new ObjectId(post.image_id) });
+            //        if (image) {
+            //            //Add image data to the post
+            //            post.image = {
+            //                file_name: image.file_name,
+            //                path: image.path,
+            //            };
+            //        }
+            //    }
+            //}
 
             //Respond with the posts in JSON format
             res.status(200).json(post_data);
@@ -449,7 +501,7 @@ connectDatabase().then((db) => {
                 .project({ username: 1, email: 1 }) //Limit fields to return (e.g., username and email)
                 .toArray();
 
-            // Respond with the matching users
+            //Respond with the matching users
             res.status(200).json(usersMatchingQuery);
         } catch (error) {
             console.error("Error searching for users:", error);
@@ -494,7 +546,7 @@ connectDatabase().then((db) => {
     console.error('Error connecting to MongoDB:', error);
 });
 
-// Start the server
+//Start the server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}/${STUDENT_ID}/`);
 });

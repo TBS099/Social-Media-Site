@@ -23,8 +23,7 @@
             <div class="nav-right">
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link active" href="/YOUR-ID/" data-link>Home</a></li>
-                    <li class="nav-item" id="hide-create"><a class="nav-link" href="/YOUR-ID/create"
-                            data-link>Create</a></li>
+                    <li class="nav-item" id="hide-create"><a class="nav-link" id="popup-link" data-link>Create</a></li>
                     <li class="nav-item register" id="hide-register"><a class="nav-link" href="/YOUR-ID/register"
                             data-link>Register</a></li>
                     <li class="nav-item">
@@ -40,6 +39,31 @@
         </div>
     </nav>
     <!--NAVBAR END-->
+    <!--POPUP POST CREATION BOX START-->
+    <div class="create-post" id="post-popup">
+        <div class="post-creation form-container">
+            <form id="create-post-form" class="form" action="" enctype="multipart/form-data">
+                <h3 id="create-post-form-title">Whats on your Mind?</h3>
+                <div id="create-post-form-message"></div>
+                <div class="form-text">
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="post-content">Content:</label>
+                        </div>
+                        <textarea id="post-content" name="content" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="post-tags">Tags (Add commas between tags):</label>
+                        </div>
+                        <textarea id="post-tags" name="tags"></textarea>
+                    </div>
+                </div>
+                <button type="submit">Create Post</button>
+            </form>
+        </div>
+    </div>
+    <!--POPUP POST CREATION BOX END-->
     <!--MAIN BODY START-->
     <div class="dynamic-body">
         <div class="loader-container" id="loader">

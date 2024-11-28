@@ -404,7 +404,13 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
 .post .author-name {
     font-size: 25px;
     margin: 0;
+    margin-right: 15px;
+}
+
+.post .profile-btn {
     margin-right: 25px;
+    width: 115px;
+    padding: 8px 20px;
 }
 
 .post .post-header .post-date {
@@ -501,9 +507,7 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
 }
 
 /* Follow Button */
-#follow-btn {
-    background-color: var(--accent);
-    color: var(--text);
+.profile-btn {
     width: 125px;
     font-size: 16px;
     padding: 10px 20px;
@@ -515,7 +519,20 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
 
 }
 
-#follow-btn:hover {
+.following {
+    border: 1px solid var(--text);
+}
+
+.following:hover {
+    background-color: var(--background);
+}
+
+.follow {
+    background-color: var(--accent);
+    color: var(--text);
+}
+
+.profile-btn:hover {
     box-shadow: 0 0 10px var(--btn-shadow), 0 0 20px var(--btn-shadow);
 }
 

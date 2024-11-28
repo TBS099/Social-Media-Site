@@ -80,6 +80,7 @@ connectDatabase().then((db) => {
                 password: hashedPassword,
                 salt: salt,
                 following: [],
+                followers: [],
                 created: new Date()
             });
 
@@ -105,10 +106,13 @@ connectDatabase().then((db) => {
             const user_logged_in = req.session?.user_id;
 
             if (user_logged_in) {
+                const current_user = await users.findOne({ _id: new ObjectId(user_logged_in) });
+
                 //Return logged-in status as true and user info
                 res.status(200).json({
                     logged_in: true,
-                    user_id: user_logged_in
+                    user_id: user_logged_in,
+                    following: current_user.following
                 });
             } else {
                 //Return logged-in status as false if not logged in
@@ -186,53 +190,6 @@ connectDatabase().then((db) => {
         }
     });
 
-    //POST route to handle image uploads
-    app.post(`/${STUDENT_ID}/images`, async (req, res) => {
-        const { _id } = req.body;
-        const image = req.files;
-
-
-        if (!image) {
-            return res.status(400).json({ error: 'No image uploaded' });
-        }
-
-        try {
-            //Save image to the server (as a file or directly in DB)
-            const imagePath = path.join(__dirname, 'uploads', image.name);
-            fs.writeFileSync(imagePath, image.data);
-
-            const result = await images.insertOne({
-                file_name: image.name,
-                path: imagePath,
-                date: new Date()
-            });
-
-            //Get the image ID from the inserted image document
-            const imageId = result.insertedId;
-
-            if (posts.findOne({ _id: _id }) != null) {
-                await posts.updateOne(
-                    { _id: _id },
-                    { $set: { image_id: imageId } }
-                );
-            }
-            else if (users.findOne({ _id: _id }) != null) {
-                await users.updateOne(
-                    { _id: _id },
-                    { $set: { image_id: imageId } }
-                );
-            }
-
-            res.status(201).json({
-                message: 'Image uploaded and associated with post successfully',
-                image_id: imageId.toString()
-            });
-        } catch (error) {
-            console.error("Error uploading image:", error);
-            res.status(500).json({ error: "Failed to upload image" });
-        }
-    });
-
     //POST route to create new posts and store them
     app.post(`/${STUDENT_ID}/contents`, async (req, res) => {
         const { content, tags } = req.body;
@@ -271,7 +228,7 @@ connectDatabase().then((db) => {
     app.get(`/${STUDENT_ID}/contents`, async (req, res) => {
         try {
             const user_id = req.session?.user_id;
-            const post_data = [];
+            let post_data = [];
 
             if (!user_id) {
                 return res.status(401).json({ error: "Not logged in" });
@@ -283,7 +240,6 @@ connectDatabase().then((db) => {
             }
 
             const following = user.following || [];
-            let posts = [];
 
             if (following.length > 0) {
                 post_data = await posts.aggregate([
@@ -316,20 +272,6 @@ connectDatabase().then((db) => {
                 ]).toArray();
             }
 
-            ////Retrieve images for posts that have image IDs
-            //for (let post of posts) {
-            //    if (post.image_id) {
-            //        const image = await images.findOne({ _id: new ObjectId(post.image_id) });
-            //        if (image) {
-            //            //Add image data to the post
-            //            post.image = {
-            //                file_name: image.file_name,
-            //                path: image.path,
-            //            };
-            //        }
-            //    }
-            //}
-
             res.status(200).json(post_data);
         } catch (error) {
             console.error("Error fetching posts:", error);
@@ -357,7 +299,7 @@ connectDatabase().then((db) => {
                 {
                     $project: {
                         content: 1, // Include content in the output
-                        author_id: 1, // Include author_id in the output
+                        author_id: { $toString: '$author_id' }, // Include author_id in the output
                         tags: 1, // Include tags in the output
                         date: 1, // Include the date in the output
                         author_name: '$author.username', // Add author name (replace 'username' with the actual field)
@@ -367,21 +309,7 @@ connectDatabase().then((db) => {
                     $sort: { date: -1 } // Sort posts by date, most recent first
                 }
             ]).toArray();
-
-            ////Retrieve images for posts that have image IDs
-            //for (let post of posts) {
-            //    if (post.image_id) {
-            //        const image = await images.findOne({ _id: new ObjectId(post.image_id) });
-            //        if (image) {
-            //            //Add image data to the post
-            //            post.image = {
-            //                file_name: image.file_name,
-            //                path: image.path,
-            //            };
-            //        }
-            //    }
-            //}
-
+            console.log(post_data);
             //Respond with the posts in JSON format
             res.status(200).json(post_data);
         } catch (error) {
@@ -393,46 +321,45 @@ connectDatabase().then((db) => {
     //POST route to follow a user
     app.post(`/${STUDENT_ID}/follow`, async (req, res) => {
         const { user_following } = req.body;
-        const user_id = req.session?.user_logged_in;
+        const user_id = req.session?.user_id;
 
         try {
-            //Check if the user is logged in
-            if (!user_id) {
-                return res.status(401).json({ error: 'Not logged in' });
+            // Check if user_following and user_id are valid ObjectId strings
+            if (!ObjectId.isValid(user_following) || !ObjectId.isValid(user_id)) {
+                return res.status(400).json({ error: 'Invalid user ID' });
             }
 
-            //Find the user to follow
-            const following_user = await users.findOne({ username: user_following });
+            // Proceed with the rest of the code
+            const following_user = await users.findOne({ _id: new ObjectId(user_following) });
             if (!following_user) {
                 return res.status(404).json({ error: "User not found" });
             }
 
-            //Check if the logged-in user is already following this user
             const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
+
+            // Check if the logged-in user is already following this user
             if (logged_in_user.following.includes(following_user._id)) {
                 return res.status(400).json({ error: "Already following user" });
             }
 
-            //Add the user to the following list
+            // Add the user to the following list
             await users.updateOne(
                 { _id: new ObjectId(user_id) },
                 { $push: { following: following_user._id } }
             );
 
-            //Add the logged-in user to the followers list
+            // Add the logged-in user to the followers list of the user being followed
             await users.updateOne(
                 { _id: following_user._id },
                 { $push: { followers: new ObjectId(user_id) } }
             );
 
-            //Respond with a success message
             res.status(200).json({
-                message: `You are now following ${usernameToFollow}`,
-                following: usernameToFollow,
+                message: `You are now following ${following_user.username}`,
+                following: following_user.username,
                 followersUpdated: true
             });
-        }
-        catch (error) {
+        } catch (error) {
             console.error("Error following user:", error);
             res.status(500).json({ error: "Failed to follow user" });
         }
@@ -440,43 +367,50 @@ connectDatabase().then((db) => {
 
     //DELETE route to unfollow a user
     app.delete(`/${STUDENT_ID}/follow`, async (req, res) => {
-        const { user_unfollowing } = req.body;
-        const user_id = req.session?.user_logged_in;
+        const { user_unfollowing } = req.body; // The user to unfollow
+        const user_id = req.session?.user_id; // Logged-in user's ID
 
         try {
-            //Check if the user is logged in
+            // Check if the user is logged in
             if (!user_id) {
                 return res.status(401).json({ error: 'Not logged in' });
             }
 
-            //Find the user to follow
-            const unfollowing_user = await users.findOne({ username: user_unfollowing });
+            // Validate user_unfollowing and user_id to ensure they are valid ObjectId values
+            if (!ObjectId.isValid(user_unfollowing)) {
+                return res.status(400).json({ error: 'Invalid user ID' });
+            }
+
+            // Find the user to unfollow
+            const unfollowing_user = await users.findOne({ _id: new ObjectId(user_unfollowing) });
             if (!unfollowing_user) {
                 return res.status(404).json({ error: "User not found" });
             }
 
-            //Check if the logged-in user is following the user
             const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
-            if (!logged_in_user.following.includes(unfollowing_user._id)) {
-                return res.status(400).json({ error: "Not following user" });
+
+            // Check if the logged-in user is following this user
+            if (!logged_in_user.following.some(id => id.toString() === unfollowing_user._id.toString())) {
+                return res.status(400).json({ error: "Not following this user" });
             }
 
-            //Remove the user from the following list
+
+            // Remove the user from the following list of the logged-in user
             await users.updateOne(
                 { _id: new ObjectId(user_id) },
                 { $pull: { following: unfollowing_user._id } }
             );
 
-            //Remove the logged-in user from the followers list
+            // Remove the logged-in user from the followers list of the user being unfollowed
             await users.updateOne(
                 { _id: unfollowing_user._id },
                 { $pull: { followers: new ObjectId(user_id) } }
             );
 
-            //Respond with a success message
+            // Respond with a success message
             res.status(200).json({
-                message: `You are no longer following ${user_unfollowing}`,
-                following: user_unfollowing,
+                message: `You are no longer following ${unfollowing_user.username}`, // Display the unfollowed user's username
+                following: unfollowing_user.username,
                 followersUpdated: true
             });
         }
@@ -485,6 +419,7 @@ connectDatabase().then((db) => {
             res.status(500).json({ error: "Failed to unfollow user" });
         }
     });
+
 
     //GET route to search for a user
     app.get(`/${STUDENT_ID}/users/search`, async (req, res) => {

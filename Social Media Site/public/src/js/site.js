@@ -9,6 +9,7 @@ $(document).ready(function () {
 
     //Initialize necessary variables
     let user_id = 0; //Initialize user_id
+    let following = []; //Initialize following array
     const theme_toggle = $('[data-theme-toggle]');
     const textarea = document.getElementById("post-content");
     const postCreation = document.querySelector(".post-creation");
@@ -64,7 +65,7 @@ $(document).ready(function () {
         })
         .then((data) => {
             user_id = data.user_id || 0; //Update the user_id
-            console.log(user_id);  //Log the user_id value
+            following = data.following;
             display_content(window.location.pathname); //Display the content for the current URL
             toggle_navigation_links(user_id); //Toggle login/register links based on user_id
         });
@@ -79,9 +80,14 @@ $(document).ready(function () {
     async function get_content(route) {
         switch (route) {
             case `/${STUDENT_ID}/`:
-                $("#loader").hide();
-                $("#container").css("justify-content", "normal"); //Use jQuery to set the flexbox alignment
-                return home_page(user_id);
+                if (user_id != 0) {
+                    $("#loader").hide();
+                    $("#container").css("justify-content", "normal"); //Use jQuery to set the flexbox alignment
+                    return home_page(user_id, following); //Render the home page
+                }
+                else {
+                    redirect_to_login();
+                }
 
             case `/${STUDENT_ID}/profile/${user_id}`:
                 $("#loader").hide();
@@ -109,21 +115,43 @@ $(document).ready(function () {
                 break;
 
             case `/${STUDENT_ID}/search`:
-                $("#loader").hide();
-                return search_page(); //Render the search form
+                if (user_id != 0) {
+                    $("#loader").hide();
+                    return search_page(); //Render the search form
+                }
+                else {
+                    redirect_to_login();
+                }
 
             case `/${STUDENT_ID}/create`:
                 $("#loader").hide();
                 if (user_id != 0) {
                     return post_creation_popup(); //Render the post creation form
                 } else {
-                    redirect_to_home();
+                    redirect_to_login();
                 }
                 break;
+
+            case `/${STUDENT_ID}/latest`:
+                if (user_id != 0) {
+                    $("#loader").hide();
+                    $("#container").css("justify-content", "normal"); //Use jQuery to set the flexbox alignment
+                    return latest_posts_page(user_id, following); //Render the latest posts page
+                }
+                else {
+                    redirect_to_login();
+                }
+                break;
+
             default:
                 $("#loader").hide();
                 return "<h1>404 Not Found</h1>";
         }
+    }
+
+    //Redirect to login page
+    function redirect_to_login() {
+        window.location.href = `/${STUDENT_ID}/surfer-login`; //Perform a full-page reload to the home page
     }
 
     //Redirect to home page
@@ -136,15 +164,30 @@ $(document).ready(function () {
         if (user_id != 0) {
             $("#hide-login").hide();
             $("#hide-register").hide();
+            $("#hide-home").show();
+            $("#hide-latest").show();
             $("#hide-logout").show();
             $("#hide-create").show();
         } else {
+            $("#hide-home").hide();
+            $("#hide-latest").hide();
             $("#hide-logout").hide();
             $("#hide-create").hide();
             $("#hide-login").show();
             $("#hide-register").show();
         }
     }
+
+    function hide_follow_buttons(id) {
+        if (following.includes(id)) {
+            $("#follow-btn").hide(); // Hide the follow button
+            $("#unfollow-btn").show(); // Show the unfollow button
+        } else {
+            $("#follow-btn").show(); // Show the follow button
+            $("#unfollow-btn").hide(); // Hide the unfollow button
+        }
+    }
+
 });
 
 //Function to handle registration form submission
@@ -294,66 +337,66 @@ async function handle_post_submit() {
 }
 
 //Function to create a home page
-async function home_page(user_id) {
-    if (user_id != 0) {
-        try {
-            const response = await fetch(`/${STUDENT_ID}/contents`, {
-                method: "GET",
-                credentials: 'include',
-                headers: {
-                    "Content-Type": "application/json",
-                }
-            });
-
-            if (!response.ok) {
-                return "<h1>No posts found</h1>";
+async function home_page(user_id, following) {
+    try {
+        const response = await fetch(`/${STUDENT_ID}/contents`, {
+            method: "GET",
+            credentials: 'include',
+            headers: {
+                "Content-Type": "application/json",
             }
+        });
 
-            const posts = await response.json();
-
-            if (posts.length === 0) {
-                return "<h1>No posts found.</h1>";
-            } else {
-                let postHTML = "<div class='post-container'>";
-                posts.forEach(post => {
-                    postHTML += create_post(post, user_id);
-                });
-                postHTML += "</div>";
-                return postHTML;
-            }
-        } catch (error) {
-            console.error("Error fetching posts:", error);
-            return "<p>Could not load posts. Please try again later.</p>";
+        if (!response.ok) {
+            return "<h1>No posts found</h1>";
         }
-    } else {
-        try {
-            const response = await fetch(`/${STUDENT_ID}/contents/latest`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                }
+
+        const posts = await response.json();
+
+        if (posts.length === 0) {
+            return "<h1>No posts found.</h1>";
+        } else {
+            let postHTML = "<div class='post-container'>";
+            posts.forEach(post => {
+                postHTML += create_post(post, user_id, following);
             });
-
-            if (!response.ok) {
-                return "<h1>No posts found</h1>";
-            }
-
-            const posts = await response.json();
-
-            if (posts.length === 0) {
-                return "<h1>No posts found</h1>";
-            } else {
-                let postHTML = "<div class='post-container'>";
-                posts.forEach(post => {
-                    postHTML += create_post(post, user_id);
-                });
-                postHTML += "</div>";
-                return postHTML;
-            }
-        } catch (error) {
-            console.error("Error fetching posts:", error);
-            container.innerHTML = "<p>Could not load posts. Please try again later.</p>";
+            postHTML += "</div>";
+            return postHTML;
         }
+    } catch (error) {
+        console.error("Error fetching posts:", error);
+        return "<p>Could not load posts. Please try again later.</p>";
+    }
+}
+
+async function latest_posts_page(user_id, following) {
+    try {
+        const response = await fetch(`/${STUDENT_ID}/contents/latest`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+        if (!response.ok) {
+            return "<h1>No posts found</h1>";
+        }
+
+        const posts = await response.json();
+
+        if (posts.length === 0) {
+            return "<h1>No posts found</h1>";
+        } else {
+            let postHTML = "<div class='post-container'>";
+            posts.forEach(post => {
+                postHTML += create_post(post, user_id, following);
+            });
+            postHTML += "</div>";
+            return postHTML;
+        }
+    } catch (error) {
+        console.error("Error fetching posts:", error);
+        container.innerHTML = "<p>Could not load posts. Please try again later.</p>";
     }
 }
 
@@ -396,7 +439,6 @@ async function handle_logout() {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(data.message);  //Log the success message
 
                 //Delay the redirection to ensure session destruction is complete
                 setTimeout(function () {
@@ -429,41 +471,96 @@ function handle_post_like(postId, userId) {
 }
 
 //Function to handle follow button click
-function follow_user(follower_id, user_id) {
-    const user_followers = document.getElementById("followers-count");
-    const follow_button = document.getElementById("follow-btn");
+async function follow_user(follower_id) {
+    const user_followers = $("#followers-count");
 
-    //Pare the current count and increment it
-    let followers_count = parseInt(user_followers.textContent);
+    try {
+        const formData = {
+            user_following: follower_id, // This will be the ObjectId of the user being followed
+        };
 
-    if (follow_button.textContent == "Following") {
-        //If the user is already following, then unfollow
-        followers_count -= 1;
+        // Send a POST request to the server to follow the user
+        const response = await $.ajax({
+            url: `/${STUDENT_ID}/follow`,
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+        });
 
-        //Change button color and text
-        follow_button.style.backgroundColor = "var(--accent)";
-        follow_button.textContent = "Follow";
+        // If the request was successful, increment the followers count
+        if (response) {
+            // Log a message to the console
+            console.log(`User ${follower_id} followed successfully.`);
 
-        //Log a message to the console
-        console.log(`User ${follower_id} unfollowed user ${user_id}`);
-    } else {
-        //If the user is not following, then follow
-        followers_count += 1;
+            // Dynamically select the follow/unfollow buttons based on post._id
+            const followButton = $(`.follow-btn-${follower_id}`);
+            const unfollowButton = $(`.unfollow-btn-${follower_id}`);
+            followButton.hide(); // Hide the follow button
+            unfollowButton.show(); // Show the unfollow button
 
-        //Change button color and text
-        follow_button.style.backgroundColor = "var(--following-btn)";
-        follow_button.textContent = "Following";
+            // Update the followers count in the <p> element
+            if (user_followers) {
+                // Parse the current count and increment it
+                let followers_count = parseInt(user_followers.text(), 10);
 
-        //Log a message to the console
-        console.log(`User ${follower_id} followed user ${user_id}`);
+                // Increment the count
+                followers_count += 1;
+                user_followers.text(followers_count);
+            }
+        }
+    } catch (error) {
+        console.error("Error following user:", error.responseJSON?.message || error.statusText || "Follow failed");
     }
+}
 
-    //Update the followers count in the <p> element
-    user_followers.textContent = followers_count;
+//Function to handle unfollow button click
+async function unfollow_user(follower_id) {
+    const user_followers = $("#followers-count");
+
+    try {
+        const formData = {
+            user_unfollowing: follower_id, // This will be the ObjectId of the user being followed
+        };
+
+        // Send a DELETE request to the server to follow the user
+        const response = await $.ajax({
+            url: `/${STUDENT_ID}/follow`,
+            type: "DELETE",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+        });
+
+        // If the request was successful, increment the followers count
+        if (response) {
+            // Log a message to the console
+            console.log(`User ${follower_id} unfollowed successfully.`);
+
+            // Dynamically select the follow/unfollow buttons based on post._id
+            const followButton = $(`.follow-btn-${follower_id}`);
+            const unfollowButton = $(`.unfollow-btn-${follower_id}`);
+            followButton.show(); // Hide the follow button
+            unfollowButton.hide(); // Show the unfollow button
+
+            // Update the followers count in the <p> element
+            if (user_followers) {
+                // Parse the current count and increment it
+                let followers_count = parseInt(user_followers.text(), 10);
+
+                // Increment the count
+                followers_count -= 1;
+                user_followers.text(followers_count);
+            }
+        }
+    } catch (error) {
+        console.error("Error unfollowing user:", error.responseJSON?.message || error.statusText || "Follow failed");
+    }
 }
 
 //Function to create a post on the basis of the provided data
-function create_post(post, user_id) {
+function create_post(post, user_id, following) {
+    const isFollowing = following.includes(post.author_id);
+    const followButtonDisplay = isFollowing ? "none" : "block";
+    const unfollowButtonDisplay = isFollowing ? "block" : "none";
     //Format the date
     const post_date = new Date(post.date);
     const formatted_date = new Intl.DateTimeFormat('en-GB', {
@@ -479,9 +576,16 @@ function create_post(post, user_id) {
         <div class="post">
             <div class="post-header">
                 <p class="author-name">${post.author_name}</p>
+                <div class="follow-btns">
+                <button id="follow-btn-${post._id}" class="profile-btn follow follow-btn-${post.author_id}" type="button" onclick="follow_user('${post.author_id}')" style="display: ${followButtonDisplay}">Follow</button>
+                <button id="unfollow-btn-${post._id}" class="profile-btn following unfollow-btn-${post.author_id}" type="button" onclick="unfollow_user('${post.author_id}')" style="display: ${unfollowButtonDisplay}">Following</button>
+                </div>
                 <p class="post-date">${formatted_date}</p>
             </div>
             <p class="post-content">${post.content}</p>
+            <div class="post-tags">
+                ${post.tags.map(tag => `<span class="tag">${tag}</span>`).join(' ')}
+            </div>
             <div class="post-footer">
                 <div class="like">
                     <i class="far fa-heart" id="${post._id}" onclick="handle_post_like(${post._id}, ${user_id})"></i>

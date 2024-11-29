@@ -6,13 +6,13 @@ $(document).ready(function () {
     handle_logout(); //Call the logout function
     handle_create_post_popup(); //Call the post popup function
     handle_post_submit(); //Call the post submit function
+    search_content(); //Call the search content function
 
     //Initialize necessary variables
-    let user_id = 0; //Initialize user_id
-    let following = []; //Initialize following array
+    let user_id = 0;
+    let following = [];
     const theme_toggle = $('[data-theme-toggle]');
-    const textarea = document.getElementById("post-content");
-    const postCreation = document.querySelector(".post-creation");
+
 
     //Function to set the theme
     function set_theme(theme) {
@@ -37,16 +37,31 @@ $(document).ready(function () {
         }
     });
 
-    //Function to adjust the height of the parent container
-    textarea.addEventListener("input", () => {
-        //Reset textarea height to calculate the new height dynamically
-        textarea.style.height = "auto";
-        textarea.style.height = `${textarea.scrollHeight}px`;
-
-        //Adjust the height of the .post-creation box
-        postCreation.style.height = `${textarea.scrollHeight + 355}px`; //Add padding/margin if needed
+    //Toggle the search form and overlay visibility
+    $('.search-btn').on('click', function () {
+        $('#search-form').toggleClass('active');
+        $('.overlay').toggleClass('active'); //Show/hide overlay
     });
 
+    //Hide the search form and overlay when the overlay is clicked
+    $('.overlay').on('click', function () {
+        $('#search-form').removeClass('active');
+        $(this).removeClass('active'); //Hide overlay
+    });
+
+    //Check text box and adjust div height
+    $("textarea").on("input", function () {
+        //Reset the height of the current textarea to calculate its height dynamically
+        $(this).css("height", "auto");
+        $(this).css("height", `${this.scrollHeight}px`);
+
+        //Calculate the combined height of both textareas
+        const postContentHeight = $("#post-content").prop("scrollHeight");
+        const postTagsHeight = $("#post-tags").prop("scrollHeight");
+
+        //Adjust the height of the .post-creation box
+        $(".post-creation").css("height", `${postContentHeight + postTagsHeight + 355}px`); //Add padding/margin if needed
+    });
 
     //Fetch the user's login status on page load
     fetch(`/${STUDENT_ID}/login`, {
@@ -82,19 +97,12 @@ $(document).ready(function () {
             case `/${STUDENT_ID}/`:
                 if (user_id != 0) {
                     $("#loader").hide();
-                    $("#container").css("justify-content", "normal"); //Use jQuery to set the flexbox alignment
+                    $("#container").css("justify-content", "normal");
                     return home_page(user_id, following); //Render the home page
                 }
                 else {
                     redirect_to_login();
                 }
-
-            case `/${STUDENT_ID}/profile/${user_id}`:
-                $("#loader").hide();
-                if (user_id === 0) {
-                    return "<h1>404 Not Found</h1>";
-                }
-                return profile_page();
 
             case `/${STUDENT_ID}/register`:
                 $("#loader").hide();
@@ -117,7 +125,7 @@ $(document).ready(function () {
             case `/${STUDENT_ID}/search`:
                 if (user_id != 0) {
                     $("#loader").hide();
-                    return search_page(); //Render the search form
+                    return search_page(user_id, following); //Render the search form
                 }
                 else {
                     redirect_to_login();
@@ -166,28 +174,19 @@ $(document).ready(function () {
             $("#hide-register").hide();
             $("#hide-home").show();
             $("#hide-latest").show();
+            $("#hide-search").show();
             $("#hide-logout").show();
             $("#hide-create").show();
         } else {
             $("#hide-home").hide();
             $("#hide-latest").hide();
+            $("#hide-search").hide();
             $("#hide-logout").hide();
             $("#hide-create").hide();
             $("#hide-login").show();
             $("#hide-register").show();
         }
     }
-
-    function hide_follow_buttons(id) {
-        if (following.includes(id)) {
-            $("#follow-btn").hide(); // Hide the follow button
-            $("#unfollow-btn").show(); // Show the unfollow button
-        } else {
-            $("#follow-btn").show(); // Show the follow button
-            $("#unfollow-btn").hide(); // Hide the unfollow button
-        }
-    }
-
 });
 
 //Function to handle registration form submission
@@ -264,6 +263,7 @@ async function handle_login_form() {
         };
 
         try {
+            //Send the login data as JSON
             const res = await fetch(`/${STUDENT_ID}/login`, {
                 method: "POST",
                 headers: {
@@ -309,6 +309,7 @@ async function handle_post_submit() {
         };
 
         try {
+            //Send the post data as JSON
             const response = await fetch(`/${STUDENT_ID}/contents`, {
                 method: "POST",
                 headers: {
@@ -339,6 +340,7 @@ async function handle_post_submit() {
 //Function to create a home page
 async function home_page(user_id, following) {
     try {
+        //Fetch the posts from the server
         const response = await fetch(`/${STUDENT_ID}/contents`, {
             method: "GET",
             credentials: 'include',
@@ -371,6 +373,7 @@ async function home_page(user_id, following) {
 
 async function latest_posts_page(user_id, following) {
     try {
+        //Fetch the latest posts from the server
         const response = await fetch(`/${STUDENT_ID}/contents/latest`, {
             method: "GET",
             headers: {
@@ -404,19 +407,18 @@ async function latest_posts_page(user_id, following) {
 function handle_create_post_popup() {
     const popup_link = $("#popup-link");
     const popup = $("#post-popup");
-    const popup_div = $(".post-creation")
+    const popup_div = $(".post-creation");
 
-
-    //Setting event listenter
     //Setting event listener for toggling the popup
     popup_link.on("click", function (event) {
-        event.preventDefault(); //Prevent default link behavior
-        popup.toggleClass("visible"); //Show the popup if hidden, hide it if visible
+        event.preventDefault();
+        popup.toggleClass("visible");
     });
 
+    //Setting event listener to hide the popup when clicking outside
     $(document).on("click", function (event) {
         if (!popup_div.is(event.target) && popup_div.has(event.target).length === 0 && !popup_link.is(event.target)) {
-            popup.removeClass("visible"); //Hide the popup if the click is outside
+            popup.removeClass("visible");
         }
     });
 }
@@ -425,11 +427,11 @@ function handle_create_post_popup() {
 async function handle_logout() {
     const logout_link = $("#hide-logout");
 
-    //Setting event listener
     logout_link.on("click", async function (event) {
         event.preventDefault();
 
         try {
+            //Send a DELETE request to the server to logout the user
             const response = await fetch(`/${STUDENT_ID}/login`, {
                 method: "DELETE",  //Correctly using DELETE method
                 headers: {
@@ -438,8 +440,6 @@ async function handle_logout() {
             });
 
             if (response.ok) {
-                const data = await response.json();
-
                 //Delay the redirection to ensure session destruction is complete
                 setTimeout(function () {
                     window.location.href = `/${STUDENT_ID}/`;  //Redirect after successful logout
@@ -476,10 +476,10 @@ async function follow_user(follower_id) {
 
     try {
         const formData = {
-            user_following: follower_id, // This will be the ObjectId of the user being followed
+            user_following: follower_id, //This will be the ObjectId of the user being followed
         };
 
-        // Send a POST request to the server to follow the user
+        //Send a POST request to the server to follow the user
         const response = await $.ajax({
             url: `/${STUDENT_ID}/follow`,
             type: "POST",
@@ -487,29 +487,37 @@ async function follow_user(follower_id) {
             data: JSON.stringify(formData),
         });
 
-        // If the request was successful, increment the followers count
+        //If the request was successful, increment the followers count
         if (response) {
-            // Log a message to the console
+            //Log a message to the console
             console.log(`User ${follower_id} followed successfully.`);
 
-            // Dynamically select the follow/unfollow buttons based on post._id
+            //Dynamically select the follow/unfollow buttons based on post._id
             const followButton = $(`.follow-btn-${follower_id}`);
             const unfollowButton = $(`.unfollow-btn-${follower_id}`);
-            followButton.hide(); // Hide the follow button
-            unfollowButton.show(); // Show the unfollow button
+            followButton.hide(); //Hide the follow button
+            unfollowButton.show(); //Show the unfollow button
 
-            // Update the followers count in the <p> element
-            if (user_followers) {
-                // Parse the current count and increment it
-                let followers_count = parseInt(user_followers.text(), 10);
+            //Send success message to the user
+            form_message = document.getElementById("follow-msg");
+            form_title = document.getElementsByClassName("navbar")[0];
+            show_feedback_message("success", "User followed successfully", form_title, form_message);
 
-                // Increment the count
-                followers_count += 1;
-                user_followers.text(followers_count);
-            }
+            setTimeout(function () {
+                form_message.innerHTML = "";
+            }, 3000);
         }
     } catch (error) {
         console.error("Error following user:", error.responseJSON?.message || error.statusText || "Follow failed");
+
+        //Send Error message to the user
+        form_message = document.getElementById("follow-msg");
+        form_title = document.getElementsByClassName("navbar")[0];
+        show_feedback_message("error", "Error Following user", form_title, form_message);
+
+        setTimeout(function () {
+            form_message.innerHTML = "";
+        }, 3000);
     }
 }
 
@@ -519,10 +527,10 @@ async function unfollow_user(follower_id) {
 
     try {
         const formData = {
-            user_unfollowing: follower_id, // This will be the ObjectId of the user being followed
+            user_unfollowing: follower_id, //This will be the ObjectId of the user being followed
         };
 
-        // Send a DELETE request to the server to follow the user
+        //Send a DELETE request to the server to follow the user
         const response = await $.ajax({
             url: `/${STUDENT_ID}/follow`,
             type: "DELETE",
@@ -530,29 +538,144 @@ async function unfollow_user(follower_id) {
             data: JSON.stringify(formData),
         });
 
-        // If the request was successful, increment the followers count
+        //If the request was successful, increment the followers count
         if (response) {
-            // Log a message to the console
+            //Log a message to the console
             console.log(`User ${follower_id} unfollowed successfully.`);
 
-            // Dynamically select the follow/unfollow buttons based on post._id
+            //Dynamically select the follow/unfollow buttons based on post._id
             const followButton = $(`.follow-btn-${follower_id}`);
             const unfollowButton = $(`.unfollow-btn-${follower_id}`);
-            followButton.show(); // Hide the follow button
-            unfollowButton.hide(); // Show the unfollow button
+            followButton.show(); //Hide the follow button
+            unfollowButton.hide(); //Show the unfollow button
 
-            // Update the followers count in the <p> element
-            if (user_followers) {
-                // Parse the current count and increment it
-                let followers_count = parseInt(user_followers.text(), 10);
+            //Send success message to the user
+            form_message = document.getElementById("follow-msg");
+            form_title = document.getElementsByClassName("navbar")[0];
+            show_feedback_message("success", "User unfollowed successfully", form_title, form_message);
 
-                // Increment the count
-                followers_count -= 1;
-                user_followers.text(followers_count);
-            }
+            setTimeout(function () {
+                form_message.innerHTML = "";
+            }, 3000);
         }
     } catch (error) {
         console.error("Error unfollowing user:", error.responseJSON?.message || error.statusText || "Follow failed");
+
+        //Send error message to the user
+        form_message = document.getElementById("follow-msg");
+        form_title = document.getElementsByClassName("navbar")[0];
+        show_feedback_message("error", "User unfollowed successfully", form_title, form_message);
+
+        setTimeout(function () {
+            form_message.innerHTML = "";
+        }, 3000);
+    }
+}
+
+//Function to change page to search page
+function search_content() {
+    $("#search-form").on("submit", async function (event) {
+        event.preventDefault(); //Prevent the default form submission
+
+        const query = $("#search-input").val(); //Get the search query
+
+        try {
+            window.location.href = `/${STUDENT_ID}/search?query=${encodeURIComponent(query)}`;
+        }
+        catch (error) {
+            console.error("Error searching:", error);
+        }
+    });
+}
+
+//Function to create a search page
+async function search_page(user_id, following) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('query');
+
+    if (!query) {
+        urlParams.get('search');
+    }
+
+    try {
+        let searchHTML = `
+        <form id="search-page-form" class="search-form">
+            <input type="text" id="search-input" name="query" placeholder="Search..." required>
+            <button type="submit" class="search-submit-btn"><i class="fas fa-search"></i></button>
+        </form>
+        <h2 class="search-result">Search results for: ${query}</h2>
+        <div class="search-options">
+            <a class="search" id="search-users" onclick="toggle_results(event)">Users</a>
+            <a class="search active" id="search-posts" onclick="toggle_results(event)">Posts</a>
+        </div>
+        `;
+
+        //Fetch the posts from the server
+        const response = await fetch(`/${STUDENT_ID}/contents/search?query=${query}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+        if (!response.ok) {
+            searchHTML += `
+            <div class='post-container'>
+                <h1>No posts found</h1>
+            </div>
+            `;
+        }
+        const posts = await response.json();
+
+        //Fetch the users from the server
+        const responseUsers = await fetch(`/${STUDENT_ID}/users/search?query=${query}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        });
+
+        if (!responseUsers.ok) {
+            searchHTML += `
+            <div class='users-container'>
+                <h1>No users found</h1>
+            </div>
+            `;
+        }
+        const users = await responseUsers.json();
+
+        if (posts.length === 0) {
+            searchHTML += `
+            <div class='post-container'>
+                <h1>No posts found</h1>
+            </div>
+            `;
+        } else {
+            searchHTML += "<div class='post-container'>";
+            posts.forEach(post => {
+                searchHTML += create_post(post, user_id, following);
+            });
+            searchHTML += "</div>";
+        }
+
+        if (users.length === 0) {
+            searchHTML += `
+           <div class='users-container'>
+                <h1>No users found</h1>
+            </div>
+            `;
+        }
+        else {
+            searchHTML += "<div class='users-container'>";
+            users.forEach(user => {
+                searchHTML += create_profile_cards(user, user_id, following);
+            });
+            searchHTML += "</div>";
+        }
+        return searchHTML;
+    } catch (error) {
+        console.error("Error fetching posts:", error);
+        return "<p>Could not load posts. Please try again later.</p>";
     }
 }
 
@@ -572,7 +695,10 @@ function create_post(post, user_id, following) {
         hour12: true,
     }).format(post_date);
 
-    const post_template = `
+    let post_template = "";
+
+    if (post.author_id != user_id) {
+        post_template = `
         <div class="post">
             <div class="post-header">
                 <p class="author-name">${post.author_name}</p>
@@ -587,62 +713,33 @@ function create_post(post, user_id, following) {
                 ${post.tags.map(tag => `<span class="tag">${tag}</span>`).join(' ')}
             </div>
             <div class="post-footer">
-                <div class="like">
-                    <i class="far fa-heart" id="${post._id}" onclick="handle_post_like(${post._id}, ${user_id})"></i>
-                    <p class="like-count" id="count-${post._id}">${post.like}</p>
-                </div>
             </div>
         </div>
     `;
+    }
 
     return post_template;
 }
 
-//Function to create a profile page on the basis of the provided data
-function create_profile() {
-    const profile_template = `
-    <div class="profile-container">
-        <div class="profile">
-            <div class="profile-header">
-                <div class="username-container">
-                    <h3 class="profile-username">{profile.username}</h3>
+function create_profile_cards(user, user_id, following) {
+    let template = "";
+    const isFollowing = following.includes(user._id);
+    const followButtonDisplay = isFollowing ? "none" : "block";
+    const unfollowButtonDisplay = isFollowing ? "block" : "none";
+    if (user_id != user._id) {
+        template = `
+            <div class='user-profile'>
+                <div class='username'>
+                    <p class="author-name">${user.username}</p>
                 </div>
-                <div class="profile-details">
-                    <img class="profile-image" src="{profile.picture}" alt="profile">
-                    <div class="profile-info">
-                        <div class="profile-counts">
-                            <div class="count">
-                                <p>Posts</p>
-                                <p id="post-count">{profile.post}</p>
-                            </div>
-                            <div class="count">
-                                <p>Followers</p>
-                                <p id="followers-count">{profile.followers}</p>
-                            </div>
-                            <div class="count">
-                                <p>Following</p>
-                                <p id="following-count">{profile.following}</p>
-                            </div>
-                        </div>
-                        <button id="follow-btn" type="button" onClick="follow_user({user_id},{profile.id})">Follow</button>
-
-                    </div>
-                </div>
-                <div class="profile-bio">
-                    <p class="bio">
-                        {profile.bio}
-                    </p>
+                <div class="follow-btns">
+                    <button id="follow-btn-${user._id}" class="profile-btn follow follow-btn-${user._id}" type="button" onclick="follow_user('${user._id}')" style="display: ${followButtonDisplay}">Follow</button>
+                    <button id="unfollow-btn-${user._id}" class="profile-btn following unfollow-btn-${user._id}" type="button" onclick="unfollow_user('${user._id}')" style="display: ${unfollowButtonDisplay}">Following</button>
                 </div>
             </div>
-        </div>
-        <div class="posts">
-            <h4 class="posts-title">Posts</h4>
-            <div class="post-container">
-            </div>
-        </div>
-    </div>`;
-
-    return profile_template;
+        `;
+    }
+    return template
 }
 
 //Function to create a profile page
@@ -743,4 +840,31 @@ function registration_validation(email, password, confirm_password) {
     }
 
     return true;
+}
+
+//Function to show search bar
+document.querySelector('.search-btn').addEventListener('click', (e) => {
+    e.preventDefault(); //Prevent default form submission
+    const searchContainer = document.querySelector('#hide-search');
+    searchContainer.classList.toggle('active');
+});
+
+//Function to toggle search results
+function toggle_results(event) {
+    const $searchPosts = $('#search-posts');
+    const $searchUsers = $('#search-users');
+
+    if ($(event.target).is('#search-posts')) {
+
+        $searchPosts.addClass('active');
+        $searchUsers.removeClass('active');
+        $('.users-container').hide();
+        $('.post-container').show();
+    } else if ($(event.target).is('#search-users')) {
+
+        $searchPosts.removeClass('active');
+        $searchUsers.addClass('active');
+        $('.post-container').hide();
+        $('.users-container').show();
+    }
 }

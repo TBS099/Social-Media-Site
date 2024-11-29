@@ -244,30 +244,30 @@ connectDatabase().then((db) => {
             if (following.length > 0) {
                 post_data = await posts.aggregate([
                     {
-                        $match: { author_id: { $in: following } } // Match posts where the author is in the 'following' array
+                        $match: { author_id: { $in: following } } //Match posts where the author is in the 'following' array
                     },
                     {
                         $lookup: {
-                            from: 'users', // Specify the collection to join
-                            localField: 'author_id', // Field from the 'posts' collection
-                            foreignField: '_id', // Field from the 'users' collection
-                            as: 'author' // Alias for the joined data
+                            from: 'users', //Specify the collection to join
+                            localField: 'author_id', //Field from the 'posts' collection
+                            foreignField: '_id', //Field from the 'users' collection
+                            as: 'author' //Alias for the joined data
                         }
                     },
                     {
-                        $unwind: '$author' // Unwind the 'author' array (since $lookup returns an array)
+                        $unwind: '$author' //Unwind the 'author' array (since $lookup returns an array)
                     },
                     {
                         $project: {
-                            content: 1, // Include content in the output
-                            author_id: 1, // Include author_id in the output
-                            tags: 1, // Include tags in the output
-                            date: 1, // Include the date in the output
-                            author_name: '$author.username', // Add author name to the result
+                            content: 1, //Include content in the output
+                            author_id: 1, //Include author_id in the output
+                            tags: 1, //Include tags in the output
+                            date: 1, //Include the date in the output
+                            author_name: '$author.username', //Add author name to the result
                         }
                     },
                     {
-                        $sort: { date: -1 } // Sort by date in descending order
+                        $sort: { date: -1 } //Sort by date in descending order
                     }
                 ]).toArray();
             }
@@ -287,26 +287,26 @@ connectDatabase().then((db) => {
             const post_data = await posts.aggregate([
                 {
                     $lookup: {
-                        from: 'users', // The users collection to join
-                        localField: 'author_id', // Field in the 'posts' collection
-                        foreignField: '_id', // Field in the 'users' collection
-                        as: 'author' // Alias for the joined data
+                        from: 'users', //The users collection to join
+                        localField: 'author_id', //Field in the 'posts' collection
+                        foreignField: '_id', //Field in the 'users' collection
+                        as: 'author' //Alias for the joined data
                     }
                 },
                 {
-                    $unwind: '$author' // Flatten the 'author' array to make the fields directly accessible
+                    $unwind: '$author' //Flatten the 'author' array to make the fields directly accessible
                 },
                 {
                     $project: {
-                        content: 1, // Include content in the output
-                        author_id: { $toString: '$author_id' }, // Include author_id in the output
-                        tags: 1, // Include tags in the output
-                        date: 1, // Include the date in the output
-                        author_name: '$author.username', // Add author name (replace 'username' with the actual field)
+                        content: 1, //Include content in the output
+                        author_id: { $toString: '$author_id' }, //Include author_id in the output
+                        tags: 1, //Include tags in the output
+                        date: 1, //Include the date in the output
+                        author_name: '$author.username', //Add author name (replace 'username' with the actual field)
                     }
                 },
                 {
-                    $sort: { date: -1 } // Sort posts by date, most recent first
+                    $sort: { date: -1 } //Sort posts by date, most recent first
                 }
             ]).toArray();
             console.log(post_data);
@@ -324,12 +324,12 @@ connectDatabase().then((db) => {
         const user_id = req.session?.user_id;
 
         try {
-            // Check if user_following and user_id are valid ObjectId strings
+            //Check if user_following and user_id are valid ObjectId strings
             if (!ObjectId.isValid(user_following) || !ObjectId.isValid(user_id)) {
                 return res.status(400).json({ error: 'Invalid user ID' });
             }
 
-            // Proceed with the rest of the code
+            //Proceed with the rest of the code
             const following_user = await users.findOne({ _id: new ObjectId(user_following) });
             if (!following_user) {
                 return res.status(404).json({ error: "User not found" });
@@ -337,18 +337,18 @@ connectDatabase().then((db) => {
 
             const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
 
-            // Check if the logged-in user is already following this user
+            //Check if the logged-in user is already following this user
             if (logged_in_user.following.includes(following_user._id)) {
                 return res.status(400).json({ error: "Already following user" });
             }
 
-            // Add the user to the following list
+            //Add the user to the following list
             await users.updateOne(
                 { _id: new ObjectId(user_id) },
                 { $push: { following: following_user._id } }
             );
 
-            // Add the logged-in user to the followers list of the user being followed
+            //Add the logged-in user to the followers list of the user being followed
             await users.updateOne(
                 { _id: following_user._id },
                 { $push: { followers: new ObjectId(user_id) } }
@@ -367,21 +367,21 @@ connectDatabase().then((db) => {
 
     //DELETE route to unfollow a user
     app.delete(`/${STUDENT_ID}/follow`, async (req, res) => {
-        const { user_unfollowing } = req.body; // The user to unfollow
-        const user_id = req.session?.user_id; // Logged-in user's ID
+        const { user_unfollowing } = req.body; //The user to unfollow
+        const user_id = req.session?.user_id; //Logged-in user's ID
 
         try {
-            // Check if the user is logged in
+            //Check if the user is logged in
             if (!user_id) {
                 return res.status(401).json({ error: 'Not logged in' });
             }
 
-            // Validate user_unfollowing and user_id to ensure they are valid ObjectId values
+            //Validate user_unfollowing and user_id to ensure they are valid ObjectId values
             if (!ObjectId.isValid(user_unfollowing)) {
                 return res.status(400).json({ error: 'Invalid user ID' });
             }
 
-            // Find the user to unfollow
+            //Find the user to unfollow
             const unfollowing_user = await users.findOne({ _id: new ObjectId(user_unfollowing) });
             if (!unfollowing_user) {
                 return res.status(404).json({ error: "User not found" });
@@ -389,27 +389,27 @@ connectDatabase().then((db) => {
 
             const logged_in_user = await users.findOne({ _id: new ObjectId(user_id) });
 
-            // Check if the logged-in user is following this user
+            //Check if the logged-in user is following this user
             if (!logged_in_user.following.some(id => id.toString() === unfollowing_user._id.toString())) {
                 return res.status(400).json({ error: "Not following this user" });
             }
 
 
-            // Remove the user from the following list of the logged-in user
+            //Remove the user from the following list of the logged-in user
             await users.updateOne(
                 { _id: new ObjectId(user_id) },
                 { $pull: { following: unfollowing_user._id } }
             );
 
-            // Remove the logged-in user from the followers list of the user being unfollowed
+            //Remove the logged-in user from the followers list of the user being unfollowed
             await users.updateOne(
                 { _id: unfollowing_user._id },
                 { $pull: { followers: new ObjectId(user_id) } }
             );
 
-            // Respond with a success message
+            //Respond with a success message
             res.status(200).json({
-                message: `You are no longer following ${unfollowing_user.username}`, // Display the unfollowed user's username
+                message: `You are no longer following ${unfollowing_user.username}`, //Display the unfollowed user's username
                 following: unfollowing_user.username,
                 followersUpdated: true
             });
@@ -424,15 +424,16 @@ connectDatabase().then((db) => {
     //GET route to search for a user
     app.get(`/${STUDENT_ID}/users/search`, async (req, res) => {
         try {
-            const query = req.query.q; //Extract the search query from URL parameters
+            const query = req.query.query; //Extract the search query from URL parameters
+            const search = req.query.search; //Extract the search query from URL parameters
 
-            if (!query) {
+            if (!query && !search) {
                 return res.status(400).json({ error: "Search query not provided" });
             }
 
             //Search users with a case-insensitive regex match
             const usersMatchingQuery = await users
-                .find({ username: { $regex: query, $options: "i" } }) //"i" for case-insensitive
+                .find({ username: { $regex: query ? query : search, $options: "i" } }) //"i" for case-insensitive
                 .project({ username: 1, email: 1 }) //Limit fields to return (e.g., username and email)
                 .toArray();
 
@@ -447,21 +448,47 @@ connectDatabase().then((db) => {
     //GET route to search for posts
     app.get(`/${STUDENT_ID}/contents/search`, async (req, res) => {
         try {
-            const query = req.query.q; //Extract the search query from URL parameters
+            const query = req.query.query; //Extract the search query from URL parameters
+            const search = req.query.search; //Extract the search query from URL parameters
 
-            if (!query) {
+            if (!query && !search) {
                 return res.status(400).json({ error: "Search query not provided" });
             }
 
             //Perform a case-insensitive search in both `content` and `tags`
-            const postsMatchingQuery = await posts
-                .find({
-                    $or: [
-                        { content: { $regex: query, $options: "i" } }, //Match in content
-                        { tags: { $regex: query, $options: "i" } }     //Match in tags
-                    ]
-                })
-                .toArray();
+            const postsMatchingQuery = await posts.aggregate([
+                {
+                    $match: {
+                        $or: [
+                            { content: { $regex: query ? query : search, $options: "i" } }, //Match in content
+                            { tags: { $regex: query ? query : search, $options: "i" } }     //Match in tags
+                        ]
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'users', //Specify the collection to join
+                        localField: 'author_id', //Field from the 'posts' collection
+                        foreignField: '_id', //Field from the 'users' collection
+                        as: 'author' //Alias for the joined data
+                    }
+                },
+                {
+                    $unwind: '$author' //Unwind the 'author' array (since $lookup returns an array)
+                },
+                {
+                    $project: {
+                        content: 1, //Include content in the output
+                        author_id: 1, //Include author_id in the output
+                        tags: 1, //Include tags in the output
+                        date: 1, //Include the date in the output
+                        author_name: '$author.username', //Add the author's username
+                    }
+                },
+                {
+                    $sort: { date: -1 } //Sort by date in descending order
+                }
+            ]).toArray();
 
             //Respond with the matching posts
             res.status(200).json(postsMatchingQuery);

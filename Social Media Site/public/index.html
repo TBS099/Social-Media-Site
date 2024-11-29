@@ -16,6 +16,12 @@
 <!--BODY START-->
 
 <body id="site-body">
+    <div class="overlay"></div>
+    <form class="search-bar" id="search-form">
+        <label for="search-input" class="visually-hidden">Search</label>
+        <input type="search" id="search-input" name="search" placeholder="Type to search..." aria-label="Search" />
+        <button class="search-submit-btn" type="submit">Search</button>
+    </form>
     <!--NAVBAR START-->
     <nav class="navbar">
         <div class="nav-container">
@@ -23,10 +29,15 @@
             <div class="nav-right">
                 <ul class="navbar-nav">
                     <li class="nav-item" id="hide-home">
-                        <a class="nav-link active" href="/YOUR-ID/" data-link>Home</a>
+                        <a class="nav-link" href="/YOUR-ID/" data-link>Home</a>
                     </li>
                     <li class="nav-item" id="hide-latest">
-                        <a class="nav-link active" href="/YOUR-ID/latest" data-link>Latest</a>
+                        <a class="nav-link" href="/YOUR-ID/latest" data-link>Latest</a>
+                    </li>
+                    <li class="nav-item" id="hide-search">
+                        <button class="search-btn" type="submit">
+                            <span>Search</span>
+                        </button>
                     </li>
                     <li class="nav-item" id="hide-create">
                         <a class="nav-link" id="popup-link" data-link>Create</a>
@@ -47,6 +58,7 @@
         </div>
     </nav>
     <!--NAVBAR END-->
+    <div class="follow-msg" id="follow-msg"></div>
     <!--POPUP POST CREATION BOX START-->
     <div class="create-post" id="post-popup">
         <div class="post-creation form-container">

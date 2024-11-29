@@ -114,12 +114,97 @@ body {
     margin: 0;
 }
 
+/* Overlay for darkening the background */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent black */
+    opacity: 0;
+    visibility: hidden;
+    z-index: 998;
+    /* Slightly lower than the .search-bar */
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Show the overlay when active */
+.overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+
+/* Search Form (Outside Navbar) Start */
+.visually-hidden {
+    display: none;
+}
+
+.search-bar {
+    position: fixed;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    background: transparent;
+    padding: 10px;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 999;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#search-input {
+    width: 500px;
+    height: 60px;
+    padding: 25px;
+    border: 1px solid var(--primary);
+    border-radius: 28px 0 0 28px;
+    outline: none;
+    margin-right: 0
+}
+
+#search-page-form #search-input {
+    height: 10px;
+}
+
+.search-submit-btn {
+    width: 85px;
+    margin-top: 0;
+    height: 60px;
+    padding: 5px 10px;
+    border: 1px solid var(--primary);
+    border-left: none;
+    background-color: var(--background);
+    color: var(--text);
+    border-radius: 0 28px 28px 0;
+    cursor: pointer;
+}
+
+#search-page-form .search-submit-btn {
+    height: 62px;
+}
+
+.search-submit-btn:hover {
+    background-color: var(--notifications);
+    color: var(--text)
+}
+
+.search-bar.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Search Form (Outside Navbar) End */
 /* Navbar Start */
 
 nav.navbar {
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: 995;
     background-color: var(--background);
     border-bottom: 1px solid var(--primary);
     display: flex;
@@ -163,16 +248,31 @@ nav .nav-right .navbar-nav .nav-item .nav-link:hover {
     color: var(--text);
 }
 
-nav .nav-right .navbar-nav .nav-item .nav-link.active {
-    color: var(--text);
-}
-
 #hide-logout {
     cursor: pointer;
 }
 
 #hide-create {
     cursor: pointer;
+}
+
+.search-btn {
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+}
+
+.search-btn:hover {
+    background-color: transparent;
+}
+
+.search-btn span {
+    color: var(--primary);
+}
+
+.search-btn span:hover {
+    color: var(--text);
 }
 
 .switch {
@@ -239,7 +339,6 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 80vh;
 }
 
 /* Throbber Start */
@@ -419,8 +518,13 @@ nav .nav-right .navbar-nav .nav-item .nav-link.active {
     margin: 0;
 }
 
-.post .post-content {
+.post .post-content,
+.post .post-tags {
     width: 90%;
+}
+
+.post-tags .tag {
+    color: var(--accent);
 }
 
 .post .post-footer {
@@ -704,14 +808,16 @@ button:hover {
 /* Form Messages Start */
 
 #form-message,
-#create-post-form-message {
+#create-post-form-message,
+#follow-msg {
     width: 100%;
     display: flex;
     justify-content: center;
 }
 
 #form-message .message,
-#create-post-form-message .message {
+#create-post-form-message .message,
+#follow-msg .message {
     font-size: 15px;
     margin-bottom: 10px;
     padding: 13px;
@@ -733,4 +839,56 @@ button:hover {
 }
 
 /* Form Messages End */
+/* Search Page Start */
+
+.search-result {
+    margin-bottom: 5px;
+}
+
+.search-options {
+    display: flex;
+}
+
+.search-options .search:first-child {
+    margin-right: 20px;
+}
+
+.search {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 8px 20px;
+    border: 1px solid var(--primary);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.search:hover {
+    background-color: var(--accent);
+    box-shadow: 0 0 10px var(--btn-shadow), 0 0 20px var(--btn-shadow);
+}
+
+.search-options .active {
+    background-color: var(--accent);
+}
+
+.users-container {
+    display: none;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    padding: 20px 35px;
+    border: 1px solid var(--primary);
+    border-radius: 10px;
+    margin: 10px 0;
+    background-color: var(--card-color);
+}
+
+.user-profile .author-name {
+    margin-right: 20px;
+}
+
+/* Search Page End */
 /* CSS END */

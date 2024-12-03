@@ -1,5 +1,6 @@
 //server.mjs
 import express from 'express';
+import fileUpload from 'express-fileupload';
 import { ObjectId } from 'mongodb';
 import connectDatabase from './db.js';
 import crypto from 'crypto';
@@ -21,6 +22,11 @@ const STUDENT_ID = 'YOUR-ID'; //Student ID, just for requirement, use home if ne
 //Middleware to parse JSON bodies
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(fileUpload({
+    limits: { fileSize: 10 * 1024 * 1024 }, //Set file size limit to 10MB
+    abortOnLimit: true,                     //Abort requests exceeding size limit
+    createParentPath: true,                 //Automatically create directories
+}));
 
 //Session middleware configuration
 app.use(
@@ -36,12 +42,16 @@ app.use(
 );
 
 //Redirect from the root URL to ID
-app.get('/', (req, res) => {
-    res.redirect(`/${STUDENT_ID}/`);
-});
+// app.get('/', (req, res) => {
+//     res.redirect(`/${STUDENT_ID}/`);
+// });
+app.use(express.static('public'));
 
 //Middleware to serve static files from the 'public' directory under ID
 app.use(`/${STUDENT_ID}`, express.static('public'));
+
+//Serve images from the 'uploads' directory
+app.use(`/uploads`, express.static(path.join(__dirname, 'uploads')));
 
 //Connect to the database when the server starts
 connectDatabase().then((db) => {
@@ -80,7 +90,6 @@ connectDatabase().then((db) => {
                 password: hashedPassword,
                 salt: salt,
                 following: [],
-                followers: [],
                 created: new Date()
             });
 
@@ -258,12 +267,30 @@ connectDatabase().then((db) => {
                         $unwind: '$author' //Unwind the 'author' array (since $lookup returns an array)
                     },
                     {
+                        $lookup: {
+                            from: 'images', //Join with 'images' collection to get the profile image
+                            localField: 'author.profile_pic_id', //Match the 'profile_pic_id' field from 'users' collection
+                            foreignField: '_id', //Match the '_id' field from the 'images' collection
+                            as: 'profile_pic' //Alias for the profile picture data
+                        }
+                    },
+                    {
+                        $unwind: { path: '$profile_pic', preserveNullAndEmptyArrays: true } //Unwind the profile_pic data (preserve if no image is found)
+                    },
+                    {
                         $project: {
                             content: 1, //Include content in the output
                             author_id: 1, //Include author_id in the output
                             tags: 1, //Include tags in the output
                             date: 1, //Include the date in the output
                             author_name: '$author.username', //Add author name to the result
+                            profile_pic: '$profile_pic.filename', //Add the profile picture filename
+                            pic_path: {
+                                $concat: [
+                                    'http://localhost:5000/uploads/', //Static base path
+                                    { $ifNull: ['$profile_pic.filename', 'default.png'] } //Default image if no profile pic
+                                ]
+                            } //Add the full profile picture URL path
                         }
                     },
                     {
@@ -271,7 +298,7 @@ connectDatabase().then((db) => {
                     }
                 ]).toArray();
             }
-
+            console.log(post_data);
             res.status(200).json(post_data);
         } catch (error) {
             console.error("Error fetching posts:", error);
@@ -297,19 +324,37 @@ connectDatabase().then((db) => {
                     $unwind: '$author' //Flatten the 'author' array to make the fields directly accessible
                 },
                 {
-                    $project: {
-                        content: 1, //Include content in the output
-                        author_id: { $toString: '$author_id' }, //Include author_id in the output
-                        tags: 1, //Include tags in the output
-                        date: 1, //Include the date in the output
-                        author_name: '$author.username', //Add author name (replace 'username' with the actual field)
+                    $lookup: {
+                        from: 'images', //Join with 'images' collection to get the profile image
+                        localField: 'author.profile_pic_id', //Match the 'profile_pic_id' field from 'users' collection
+                        foreignField: '_id', //Match the '_id' field from the 'images' collection
+                        as: 'profile_pic' //Alias for the profile picture data
                     }
                 },
                 {
-                    $sort: { date: -1 } //Sort posts by date, most recent first
+                    $unwind: { path: '$profile_pic', preserveNullAndEmptyArrays: true } //Unwind the profile_pic data (preserve if no image is found)
+                },
+                {
+                    $project: {
+                        content: 1, //Include content in the output
+                        author_id: 1, //Include author_id in the output
+                        tags: 1, //Include tags in the output
+                        date: 1, //Include the date in the output
+                        author_name: '$author.username', //Add author name to the result
+                        profile_pic: '$profile_pic.filename', //Add the profile picture filename
+                        pic_path: {
+                            $concat: [
+                                'http://localhost:5000/uploads/', //Static base path
+                                { $ifNull: ['$profile_pic.filename', 'default.png'] } //Default image if no profile pic
+                            ]
+                        } //Add the full profile picture URL path
+                    }
+                },
+                {
+                    $sort: { date: -1 } //Sort by date in descending order
                 }
             ]).toArray();
-            console.log(post_data);
+
             //Respond with the posts in JSON format
             res.status(200).json(post_data);
         } catch (error) {
@@ -346,12 +391,6 @@ connectDatabase().then((db) => {
             await users.updateOne(
                 { _id: new ObjectId(user_id) },
                 { $push: { following: following_user._id } }
-            );
-
-            //Add the logged-in user to the followers list of the user being followed
-            await users.updateOne(
-                { _id: following_user._id },
-                { $push: { followers: new ObjectId(user_id) } }
             );
 
             res.status(200).json({
@@ -401,12 +440,6 @@ connectDatabase().then((db) => {
                 { $pull: { following: unfollowing_user._id } }
             );
 
-            //Remove the logged-in user from the followers list of the user being unfollowed
-            await users.updateOne(
-                { _id: unfollowing_user._id },
-                { $pull: { followers: new ObjectId(user_id) } }
-            );
-
             //Respond with a success message
             res.status(200).json({
                 message: `You are no longer following ${unfollowing_user.username}`, //Display the unfollowed user's username
@@ -432,10 +465,44 @@ connectDatabase().then((db) => {
             }
 
             //Search users with a case-insensitive regex match
-            const usersMatchingQuery = await users
-                .find({ username: { $regex: query ? query : search, $options: "i" } }) //"i" for case-insensitive
-                .project({ username: 1, email: 1 }) //Limit fields to return (e.g., username and email)
-                .toArray();
+            const usersMatchingQuery = await users.aggregate([
+                //Match the query using regex for case-insensitive search
+                {
+                    $match: {
+                        username: { $regex: query ? query : search, $options: "i" }
+                    }
+                },
+                //Lookup the corresponding image based on profile_pic_id
+                {
+                    $lookup: {
+                        from: 'images', //Join with the 'images' collection
+                        localField: 'profile_pic_id', //Field in 'users' collection
+                        foreignField: '_id', //Field in 'images' collection
+                        as: 'profile_pic' //Alias for the joined data
+                    }
+                },
+                //Unwind the 'profile_pic' array (since $lookup returns an array)
+                {
+                    $unwind: {
+                        path: '$profile_pic', //Unwind the 'profile_pic' array to access the image
+                        preserveNullAndEmptyArrays: true //Keep users without a profile picture
+                    }
+                },
+                //Project the necessary fields, including the profile picture filename
+                {
+                    $project: {
+                        username: 1, //Include username
+                        profile_pic: '$profile_pic.filename', //Add the profile picture filename
+                        pic_path: {
+                            $concat: [
+                                'http://localhost:5000/uploads/', //Static base path
+                                { $ifNull: ['$profile_pic.filename', 'default.png'] } //Default image if no profile pic
+                            ]
+                        } //Add the full profile picture URL path
+                    }
+                }
+            ]).toArray();
+
 
             //Respond with the matching users
             res.status(200).json(usersMatchingQuery);
@@ -477,12 +544,30 @@ connectDatabase().then((db) => {
                     $unwind: '$author' //Unwind the 'author' array (since $lookup returns an array)
                 },
                 {
+                    $lookup: {
+                        from: 'images', //Join with 'images' collection to get the profile image
+                        localField: 'author.profile_pic_id', //Match the 'profile_pic_id' field from 'users' collection
+                        foreignField: '_id', //Match the '_id' field from the 'images' collection
+                        as: 'profile_pic' //Alias for the profile picture data
+                    }
+                },
+                {
+                    $unwind: { path: '$profile_pic', preserveNullAndEmptyArrays: true } //Unwind the profile_pic data (preserve if no image is found)
+                },
+                {
                     $project: {
                         content: 1, //Include content in the output
                         author_id: 1, //Include author_id in the output
                         tags: 1, //Include tags in the output
                         date: 1, //Include the date in the output
-                        author_name: '$author.username', //Add the author's username
+                        author_name: '$author.username', //Add author name to the result
+                        profile_pic: '$profile_pic.filename', //Add the profile picture filename
+                        pic_path: {
+                            $concat: [
+                                'http://localhost:5000/uploads/', //Static base path
+                                { $ifNull: ['$profile_pic.filename', 'default.png'] } //Default image if no profile pic
+                            ]
+                        } //Add the full profile picture URL path
                     }
                 },
                 {
@@ -495,6 +580,85 @@ connectDatabase().then((db) => {
         } catch (error) {
             console.error("Error searching for contents:", error);
             res.status(500).json({ error: "Failed to search for contents" });
+        }
+    });
+
+    //POST route to upload an image
+    app.post(`/${STUDENT_ID}/images`, async (req, res) => {
+        //Check if an image file is uploaded
+        if (!req.files || !req.files.image) {
+            return res.status(400).json({ error: "No image uploaded" });
+        }
+
+        const image = req.files.image;
+
+        //Check if user ID is provided through the form
+        const user_id = req.body.user_id;
+        if (!user_id) {
+            return res.status(400).json({ error: "No user ID provided" });
+        }
+
+        //Validate file type (only images allowed)
+        const allowedExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp"];
+        const fileExtension = path.extname(image.name).toLowerCase();
+
+        if (!allowedExtensions.includes(fileExtension)) {
+            return res.status(400).json({ error: "Invalid file type. Only image files are allowed." });
+        }
+
+        //Validate file size (limit to 5MB, adjust as needed)
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; //5MB
+        if (image.size > MAX_FILE_SIZE) {
+            return res.status(400).json({ error: "File size exceeds the 5MB limit." });
+        }
+
+        try {
+            //Ensure `uploads` directory exists
+            const uploadDir = path.join(__dirname, "uploads");
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir);
+            }
+
+            //Save the file to the server's `uploads` directory
+            const uploadPath = path.join(uploadDir, image.name);
+            await image.mv(uploadPath);
+
+            //Save file metadata and raw image data to MongoDB
+            const result = await images.insertOne({
+                filename: image.name,
+                filepath: uploadPath,
+                mimetype: image.mimetype,
+                size: image.size,
+                user_id: new ObjectId(user_id),
+                created: new Date(),
+            });
+
+            //Get the inserted image ID
+            const imageId = result.insertedId;
+
+            //Update the user profile with the image ID
+            const updateResult = await users.updateOne(
+                { _id: new ObjectId(user_id) }, //Match the user by user_id
+                { $set: { profile_pic_id: imageId } } //Set the profile_pic_id to the image's ID
+            );
+
+            //Check if the user update was successful
+            if (updateResult.modifiedCount === 0) {
+                return res.status(404).json({ error: "User not found or user not authorized to update" });
+            }
+
+            //Send success response with the image URL
+            const imageUrl = `http://localhost:5000/uploads/${image.name}`; //The URL to access the uploaded image
+            res.status(201).json({
+                message: "Image uploaded successfully",
+                id: imageId.toString(),
+                filename: image.name,
+                imageUrl, //Include the image URL in the response
+                upload: true,
+            });
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            res.status(500).json({ error: "Failed to upload image", upload: false });
         }
     });
 

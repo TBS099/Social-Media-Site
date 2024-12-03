@@ -204,6 +204,7 @@ async function handle_register_form() {
         const email = register_form.find("input[name='email']").val();
         const password = register_form.find("input[name='password']").val();
         const confirm_password = register_form.find("input[name='confirm_password']").val();
+        const profilePicture = register_form.find("input[name='profilePicture']")[0].files[0];
 
         if (registration_validation(email, password, confirm_password)) {
             const formData = {
@@ -228,10 +229,30 @@ async function handle_register_form() {
                     show_feedback_message("error", error_msg.error, form_title[0], form_message[0]);
                 } else {
                     const data = await res.json();
-                    show_feedback_message("success", data.message, form_title[0], form_message[0]);
-                    setTimeout(function () {
-                        window.location.href = `/${STUDENT_ID}/`;
-                    }, 1000);
+
+                    //Upload the profile picture
+                    const user_id = data.id;
+                    // Create a new FormData object for the image upload
+                    const imageData = new FormData();
+                    imageData.append("user_id", user_id); // Attach the user_id
+                    imageData.append("image", profilePicture); // Attach the profile picture
+
+                    // Send the profile picture to the server
+                    const imageRes = await fetch(`/${STUDENT_ID}/images`, {
+                        method: "POST",
+                        body: imageData,
+                    });
+
+                    if (!imageRes.ok) {
+                        const error_msg = await imageRes.json();
+                        console.error("Error uploading image:", error_msg);
+                        show_feedback_message("error", error_msg.error, form_title[0], form_message[0]);
+                    } else {
+                        show_feedback_message("success", data.message, form_title[0], form_message[0]);
+                        setTimeout(function () {
+                            window.location.href = `/${STUDENT_ID}/`;
+                        }, 1000);
+                    }
                 }
             } catch (error) {
                 console.error("Error registering user:", error);
@@ -701,7 +722,8 @@ function create_post(post, user_id, following) {
         post_template = `
         <div class="post">
             <div class="post-header">
-                <p class="author-name">${post.author_name}</p>
+            <img src="${post.pic_path}" alt="${post.profile_pic}" class="profile-picture" />
+            <p class="author-name" > ${post.author_name}</p>
                 <div class="follow-btns">
                 <button id="follow-btn-${post._id}" class="profile-btn follow follow-btn-${post.author_id}" type="button" onclick="follow_user('${post.author_id}')" style="display: ${followButtonDisplay}">Follow</button>
                 <button id="unfollow-btn-${post._id}" class="profile-btn following unfollow-btn-${post.author_id}" type="button" onclick="unfollow_user('${post.author_id}')" style="display: ${unfollowButtonDisplay}">Following</button>
@@ -714,8 +736,8 @@ function create_post(post, user_id, following) {
             </div>
             <div class="post-footer">
             </div>
-        </div>
-    `;
+        </div >
+            `;
     }
 
     return post_template;
@@ -729,6 +751,7 @@ function create_profile_cards(user, user_id, following) {
     if (user_id != user._id) {
         template = `
             <div class='user-profile'>
+            <img src="${user.pic_path}" alt="${user.profile_pic}" class="profile-picture" />
                 <div class='username'>
                     <p class="author-name">${user.username}</p>
                 </div>
@@ -737,7 +760,7 @@ function create_profile_cards(user, user_id, following) {
                     <button id="unfollow-btn-${user._id}" class="profile-btn following unfollow-btn-${user._id}" type="button" onclick="unfollow_user('${user._id}')" style="display: ${unfollowButtonDisplay}">Following</button>
                 </div>
             </div>
-        `;
+            `;
     }
     return template
 }
@@ -745,77 +768,77 @@ function create_profile_cards(user, user_id, following) {
 //Function to create a profile page
 function create_register_page() {
     return `
-    <div class="form-container">
-        <form id="register-form" class="form" action="" enctype="multipart/form-data">
-            <h3 id="register-form-title">Register</h3>
-            <div id="form-message"></div>
-            <div class="form-text">
-                <div class="form-group">
-                    <div class="label-div">
-                        <label for="username">Username:</label>
+        <div class="form-container" >
+            <form id="register-form" class="form" action="" enctype="multipart/form-data">
+                <h3 id="register-form-title">Register</h3>
+                <div id="form-message"></div>
+                <div class="form-text">
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="username">Username:</label>
+                        </div>
+                        <input type="text" id="username" name="username" required>
                     </div>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <div class="label-div">
-                        <label for="email">Email:</label>
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="email">Email:</label>
+                        </div>
+                        <input type="email" id="email" name="email" required>
                     </div>
-                    <input type="email" id="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <div class="label-div">
-                        <label for="password">Password:</label>
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="password">Password:</label>
+                        </div>
+                        <input type="password" id="password" name="password" required>
                     </div>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <div class="label-div">
-                    <label for="confirm_password">Confirm Password:</label>
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="confirm_password">Confirm Password:</label>
+                        </div>
+                        <input type="password" id="confirm-password" name="confirm_password" required>
                     </div>
-                    <input type="password" id="confirm-password" name="confirm_password" required>
                 </div>
-            </div>
-            <div class="form-group image-upload">
-                <label for="profilePicture">Profile Picture:</label>
-                <input type="file" id="profilePicture" name="profilePicture" accept="image/*" required>
-            </div>
-            <button type="submit" onclick="handle_register_form()">Register</button>
-        </form>
-    </div>
-    `;
+                <div class="form-group image-upload">
+                    <label for="profilePicture">Profile Picture:</label>
+                    <input type="file" id="profilePicture" name="profilePicture" accept="image/*" required>
+                </div>
+                <button type="submit" onclick="handle_register_form()">Register</button>
+            </form>
+        </div>
+        `;
 }
 
 //Function to create a login page
 function create_login_page() {
     return `
-    <div class="form-container login">
-        <form id="login-form" class="form" action="" enctype="multipart/form-data">
-            <h3 id="login-form-title">Login</h3>
-            <div id="form-message"></div>
-            <div class="form-text">
-                <div class="form-group">
-                    <div class="label-div">
-                        <label for="username">Username:</label>
+        <div class="form-container login" >
+            <form id="login-form" class="form" action="" enctype="multipart/form-data">
+                <h3 id="login-form-title">Login</h3>
+                <div id="form-message"></div>
+                <div class="form-text">
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="username">Username:</label>
+                        </div>
+                        <input type="text" id="username" name="username" required>
                     </div>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <div class="label-div">
-                        <label for="password">Password:</label>
+                    <div class="form-group">
+                        <div class="label-div">
+                            <label for="password">Password:</label>
+                        </div>
+                        <input type="password" id="password" name="password" required>
                     </div>
-                    <input type="password" id="password" name="password" required>
                 </div>
-            </div>
-            <button type="submit" onclick="handle_login_form()">Login</button>
-        </form>
-    </div>
-    `;
+                <button type="submit" onclick="handle_login_form()">Login</button>
+            </form>
+        </div>
+        `;
 }
 
 //Function to show messages (both error and success)
 function show_feedback_message(type, message, form_title, form_message) {
     $(form_title).css('margin-bottom', '20px');
-    $(form_message).html(`<div class="${type} message">${message}</div>`);
+    $(form_message).html(`<div class="${type} message"> ${message}</div> `);
 }
 
 //Function to validate the registration form

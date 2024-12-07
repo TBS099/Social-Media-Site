@@ -298,7 +298,6 @@ connectDatabase().then((db) => {
                     }
                 ]).toArray();
             }
-            console.log(post_data);
             res.status(200).json(post_data);
         } catch (error) {
             console.error("Error fetching posts:", error);

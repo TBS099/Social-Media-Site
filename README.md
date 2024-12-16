@@ -65,7 +65,7 @@ To set up and run this project locally:
 /social-media-site
 │
 ├── public/                # Static files (HTML, CSS, JS)
-|   └──src/
+│  └──src/
 │       ├── css/           # CSS files
 │       ├── js/            # Client-side JavaScript
 │       └── font/          # Font files
